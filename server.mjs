@@ -1,4 +1,4 @@
-// Higher Ground LAN server: this PC shows the board (/) and two phones join as controllers (/play).
+// Estate Assassins LAN server: this PC shows the board (/) and up to four phones join as controllers (/play).
 // No dependencies: static files over HTTP, Server-Sent Events downstream, small JSON POSTs upstream.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -11,8 +11,9 @@ const PORT = Number(process.env.PORT) || 8080;
 const FILES = { '/': 'index.html', '/index.html': 'index.html', '/play': 'controller.html', '/controller.html': 'controller.html' };
 
 const displays = new Set();
-const seats = [{ id: null, res: null }, { id: null, res: null }];
-const lastState = [null, null];
+const SEATS = 4;
+const seats = Array.from({ length: SEATS }, () => ({ id: null, res: null }));
+const lastState = new Array(SEATS).fill(null);
 
 const send = (res, event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 const seatInfo = () => seats.map((s) => ({ taken: !!s.id, online: !!s.res }));
@@ -44,7 +45,7 @@ function openEvents(req, res, url) {
     return;
   }
   const seat = Number(url.searchParams.get('seat')), id = url.searchParams.get('id');
-  if (!(seat === 0 || seat === 1) || !id) { send(res, 'refused', { reason: 'bad request' }); res.end(); return; }
+  if (!(Number.isInteger(seat) && seat >= 0 && seat < SEATS) || !id) { send(res, 'refused', { reason: 'bad request' }); res.end(); return; }
   const s = seats[seat];
   // A seat is only taken while its phone is connected; a closed browser frees it for another phone.
   if (s.id && s.id !== id && s.res) { send(res, 'taken', { seat }); res.end(); return; }
@@ -75,7 +76,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'POST' && url.pathname === '/state') {
       const body = await readBody(req);
-      (body.seats || []).slice(0, 2).forEach((state, i) => { lastState[i] = state; if (seats[i].res) send(seats[i].res, 'state', state); });
+      (body.seats || []).slice(0, SEATS).forEach((state, i) => { lastState[i] = state; if (seats[i].res) send(seats[i].res, 'state', state); });
       return json(res, { ok: true });
     }
     if (req.method === 'POST' && url.pathname === '/leave') {
@@ -88,7 +89,7 @@ const server = http.createServer(async (req, res) => {
       broadcastSeats();
       return json(res, { ok: true });
     }
-    res.writeHead(404, { 'content-type': 'text/plain' }).end('Niet gevonden');
+    res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
   } catch (e) {
     res.writeHead(400, { 'content-type': 'text/plain' }).end(String(e.message || e));
   }
@@ -97,6 +98,6 @@ const server = http.createServer(async (req, res) => {
 setInterval(() => { for (const r of [...displays, ...seats.map((s) => s.res).filter(Boolean)]) r.write(': ping\n\n'); }, 15000);
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Higher Ground draait.\n  Bord (deze pc):  http://localhost:${PORT}`);
-  for (const u of lanUrls()) console.log(`  Telefoons:       ${u}`);
+  console.log(`Estate Assassins is running.\n  Board (this PC): http://localhost:${PORT}`);
+  for (const u of lanUrls()) console.log(`  Phones:          ${u}`);
 });

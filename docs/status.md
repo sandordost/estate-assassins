@@ -1,23 +1,18 @@
-# Status Higher Ground
+# Status
 
-Bijgewerkt: 2 oktober 2026 (versie 0.4.0).
+Updated 3 October 2026 (version 1.0.0).
 
-## Bewezen
+## Verified
 
-- Headless Chromium (Playwright-core 1.58): menu, heldkeuze, AI-modus, 2-spelermodus, telefoonmodus; geen pagina-fouten.
-- Zes AI-tegen-AI-rondes met helden (`?speed=15&autoplay`): alle binnen 10 minuten speltijd, supers van alle drie helden gebruikt.
-- End-to-end telefoonmodus (bord + 2 telefoonpagina's via `server.mjs`): stoel kiezen, held kiezen, raden, claimen,
-  actiekaarten, supers, einde en "Nog een ronde" vanaf de telefoon; een derde telefoon kan geen bezette stoel overnemen;
-  een stoel waarvan de telefoon is verdwenen kan door een andere telefoon worden overgenomen.
-- Scherm-in-scherm: spiegel volgt de speler aan de beurt, toont tikken (ook op het 3D-bord) en verbergt de hand; getest met 2 headless telefoons.
-- Layout gecontroleerd op 1280×800 en 390×844.
+- Headless Chromium (Playwright-core 1.58, SwiftShader WebGL): menu, hero select, AI, hot-seat and phone modes; no page errors.
+- Six AI-only rounds with 2, 3 and 4 players (`?speed=15&autoplay`): all finished within 10 minutes of game time; flag
+  captures, dominance wins, time-ups and eliminations all occurred; obstacle cards changed the map without breaking it.
+- Phone mode with three headless phones: seat and hero choice, 3-player game, picture-in-picture mirror following the
+  active player, board rotated so each player's HQ is bottom-left.
+- Layouts checked at 1600×900 and 390×844.
 
-## Onbewezen
+## Not verified
 
-- Speelplezier, balans van helden en actiekaarten: wacht op speeltest.
-- Geluid is alleen technisch gecontroleerd (geen fouten); klank en volume vragen een luistertest.
-- Echte telefoons (iOS Safari/Android Chrome) op het thuisnetwerk nog niet getest.
-
-## Volgende actie
-
-Eén ronde spelen met twee telefoons en feedback geven op tempo, helden, geluid en de bediening op de telefoon.
+- Fun, balance of Beacons, heroes and the 30 action cards: needs real play tests.
+- Real phones (iOS Safari, Android Chrome) and GPU performance of bloom/shadows on low-end hardware (`?lowgfx` exists).
+- Sound has only been checked for errors, not listened to.

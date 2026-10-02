@@ -1,9 +1,13 @@
 {
-  "name": "higher-ground",
-  "version": "0.4.0",
+  "name": "estate-assassins",
+  "version": "1.0.0",
   "private": true,
-  "description": "Higher-or-lower card game with property, coin flips and capture the flag; PC as board, phones as controllers.",
+  "description": "Higher-or-lower card game about seizing property: coin flips, beacons, capture the HQ. 2-4 players, phones as controllers, Three.js board.",
   "type": "module",
-  "scripts": { "start": "node server.mjs" },
-  "engines": { "node": ">=18" }
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
