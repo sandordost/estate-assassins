@@ -214,7 +214,7 @@ function render() {
   if (s.lobby) {
     const mine = s.chars?.[seat];
     $('me').textContent = `${COLOR_NAMES[seat]} player`; $('turn').className = 'turn';
-    $('turn').textContent = seat >= (s.count || 4) ? `This game has ${s.count} players: pick a lower colour` : mine ? 'Ready! Waiting for the PC to start…' : 'Choose your hero below';
+    $('turn').textContent = mine ? 'Ready! Waiting for the PC to start…' : 'Choose your hero below';
     $('heroLine').textContent = ''; $('result').classList.add('hidden'); $('dom').innerHTML = ''; $('rivals').innerHTML = '';
     const box = $('heroes'); box.innerHTML = '';
     for (const h of s.heroes || []) {
@@ -234,8 +234,8 @@ function render() {
   $('heroLine').textContent = `Passive: ${s.hero.passive}`;
   $('time').textContent = `${Math.floor(s.timeLeft / 60)}:${String(s.timeLeft % 60).padStart(2, '0')}`;
   $('time').classList.toggle('low', s.timeLeft < 60);
-  $('dom').innerHTML = s.dom.map((d, i) => `<div style="width:${d}%;background:${COLORS[i]}"></div>`).join('');
-  $('rivals').innerHTML = s.players.map((p, i) => `<span class="${p.alive ? '' : 'out'}" style="color:${COLORS[i]};border-color:${COLORS[i]}">${p.icon} ${s.dom[i]}% · 💎${p.beacons}</span>`).join('');
+  $('dom').innerHTML = s.players.map((p) => `<div style="width:${p.dom}%;background:${COLORS[p.slot]}"></div>`).join('');
+  $('rivals').innerHTML = s.players.map((p) => `<span class="${p.alive ? '' : 'out'}" style="color:${COLORS[p.slot]};border-color:${COLORS[p.slot]}">${p.icon} ${p.dom}% · 💎${p.beacons}</span>`).join('');
   const turn = $('turn');
   turn.className = 'turn' + (s.myTurn ? ' mine' : '');
   turn.textContent = s.over ? 'Round over' : !s.alive ? 'You were eliminated 💀' : s.myTurn ? 'Your turn!' : `${s.curName}'s turn`;
@@ -256,7 +256,8 @@ function render() {
   $('bCancel').classList.toggle('hidden', !s.canCancel);
   const targeting = s.myTurn && (s.phase === 'claim' || s.phase === 'target');
   $('boardHint').textContent = targeting ? '· tap a glowing tile' : '';
-  $('legend').textContent = `💎 Beacons: you ${s.players[seat].beacons}/${s.beaconsNeeded} · ${s.canAttack ? 'rival HQ shields are DOWN for you' : `HQ shields drop at ${s.beaconsNeeded}`}`;
+  const me = s.players.find((p) => p.slot === seat) || { beacons: 0 };
+  $('legend').textContent = `💎 Beacons: you ${me.beacons}/${s.beaconsNeeded} · ${s.canAttack ? 'rival HQ shields are DOWN for you' : `HQ shields drop at ${s.beaconsNeeded}`}`;
 
   const cells = new Array(N * N);
   s.tiles.forEach((t, i) => { cells[displayIndex(i / N | 0, i % N)] = i; });

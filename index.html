@@ -709,9 +709,9 @@ function buildCastle(g, accent, owner) {
   const gate = new THREE.Mesh(new THREE.PlaneGeometry(.14, .2), MAT.window); gate.position.set(0, .1, .335); g.add(gate);
   g.add(mesh(new THREE.CylinderGeometry(.018, .018, 1.2), MAT.metal, 0, 1.05, 0));
   const clothGeo = new THREE.PlaneGeometry(.62, .38, 14, 5); clothGeo.translate(.31, 0, 0);
-  const cloth = mesh(clothGeo, new THREE.MeshStandardMaterial({ color: PCSS[owner], side: THREE.DoubleSide, emissive: PCSS[owner], emissiveIntensity: .5 }), .02, 1.45, 0);
+  const cloth = mesh(clothGeo, new THREE.MeshStandardMaterial({ color: pcss(owner), side: THREE.DoubleSide, emissive: pcss(owner), emissiveIntensity: .5 }), .02, 1.45, 0);
   g.add(cloth); cloth.userData.base = clothGeo.attributes.position.array.slice(); flags.push(cloth);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(.68, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), domeMaterial(PCSS[owner]));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(.68, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), domeMaterial(pcss(owner)));
   dome.position.y = .01; dome.renderOrder = 5; g.add(dome); g.userData.dome = dome;
 }
 function buildBeacon(g, accent, colorHex) {
@@ -761,7 +761,7 @@ const hitMeshes = [];
 // ---------- map generation ----------
 // One 3×3 quadrant is generated and rotated four times, so every corner gets the same map: random, yet fair.
 const rot = (r, c) => [c, N - 1 - r]; // 90° clockwise
-function genMap(nPlayers) {
+function genMap(slots) {
   for (let attempt = 0; attempt < 400; attempt++) {
     const q = [];
     for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) q.push({ r, c, kind: 'land', value: pick([1, 1, 2, 2, 3]) });
@@ -779,8 +779,8 @@ function genMap(nPlayers) {
     // seat of each HQ corner; unused corners become ruined keeps
     for (const t of grid) {
       if (t.kind !== 'hq') continue;
-      const seat = HQ_POS.findIndex(([r, c]) => r === t.r && c === t.c);
-      if (seat < nPlayers) { t.seat = seat; t.value = 3; } else { t.kind = 'land'; t.value = 3; t.ruin = true; }
+      const pi = slots.indexOf(HQ_POS.findIndex(([r, c]) => r === t.r && c === t.c));
+      if (pi >= 0) { t.seat = pi; t.value = 3; } else { t.kind = 'land'; t.value = 3; t.ruin = true; }
     }
     if (connected(grid)) return grid.map((t, i) => ({ ...t, i }));
   }
@@ -806,7 +806,7 @@ function connected(grid, extraBlock = -1) {
 function buildBoard() {
   boardGroup.clear(); hitMeshes.length = 0; flags.length = 0; spinners.length = 0; blinkers.length = 0;
   for (const l of hqLights) if (l) scene.remove(l); hqLights.length = 0;
-  S.tiles = genMap(S.players.length).map((t) => ({
+  S.tiles = genMap(S.players.map((p) => p.slot)).map((t) => ({
     ...t, owner: t.kind === 'hq' ? t.seat : -1, shield: 0, fort: false, trap: -1, touchT: null,
     bType: t.kind === 'land' ? (t.ruin ? 'ruin' : ['house', 'shop', 'tower'][t.value - 1]) : null,
     pos: new THREE.Vector3((t.c - (N - 1) / 2) * SP, 0, (t.r - (N - 1) / 2) * SP),
@@ -822,7 +822,7 @@ function buildBoard() {
       new THREE.MeshStandardMaterial({ color: 0x9fe8ff, transparent: true, opacity: .25, emissive: 0x5fd0ff, emissiveIntensity: .8, depthWrite: false }));
     t.dome.position.y = TOP; t.dome.visible = false; t.group.add(t.dome);
     buildContent(t);
-    if (t.kind === 'hq') { const l = new THREE.PointLight(PCSS[t.seat], 1.8, 3.5, 1.6); l.position.copy(t.pos).add(new THREE.Vector3(0, 1.6, 0)); scene.add(l); hqLights[t.seat] = l; }
+    if (t.kind === 'hq') { const l = new THREE.PointLight(pcss(t.seat), 1.8, 3.5, 1.6); l.position.copy(t.pos).add(new THREE.Vector3(0, 1.6, 0)); scene.add(l); hqLights[t.seat] = l; }
   }
   for (const t of S.tiles) paintTile(t);
 }
@@ -838,15 +838,15 @@ function buildContent(t) {
 }
 function paintTile(t) {
   const own = t.owner >= 0;
-  const base = t.kind === 'obstacle' ? new THREE.Color(t.obs === 'lake' ? 0x1c2a3a : 0x352e3c) : own ? PCOL[t.owner].clone().multiplyScalar(.32) : new THREE.Color(0x2b3142);
+  const base = t.kind === 'obstacle' ? new THREE.Color(t.obs === 'lake' ? 0x1c2a3a : 0x352e3c) : own ? pcol(t.owner).clone().multiplyScalar(.32) : new THREE.Color(0x2b3142);
   t.base.material.color.copy(base);
-  t.accent.color.copy(own ? PCOL[t.owner] : new THREE.Color(0x8a8f9c));
-  t.accent.emissive.copy(own ? PCOL[t.owner] : new THREE.Color(0)); t.accent.emissiveIntensity = own ? .25 : 0;
-  t.glow.material.uniforms.uColor.value.copy(own ? PCOL[t.owner] : new THREE.Color(.8, .85, 1));
+  t.accent.color.copy(own ? pcol(t.owner) : new THREE.Color(0x8a8f9c));
+  t.accent.emissive.copy(own ? pcol(t.owner) : new THREE.Color(0)); t.accent.emissiveIntensity = own ? .25 : 0;
+  t.glow.material.uniforms.uColor.value.copy(own ? pcol(t.owner) : new THREE.Color(.8, .85, 1));
   t.glow.material.uniforms.uStrength.value = own ? .75 : .1;
   t.dome.visible = t.shield > 0;
   if (t.kind === 'beacon') {
-    const c = own ? PCOL[t.owner] : new THREE.Color(0xbfe6ff);
+    const c = own ? pcol(t.owner) : new THREE.Color(0xbfe6ff);
     t.content.userData.crystal?.material.color.copy(c); t.content.userData.crystal?.material.emissive.copy(c);
     t.content.userData.beam?.material.uniforms.uColor.value.copy(c);
   }
@@ -889,14 +889,14 @@ const leaderRival = (pi) => rivals(pi).sort((a, b) => ownedValue(b.i) - ownedVal
 
 // ---------- hero emblems ----------
 const heroSprites = [];
-const heroSpritePos = (seat) => { const [r, c] = HQ_POS[seat]; return new THREE.Vector3(c ? 3.95 : -3.95, 1.1, r ? 4.05 : -3.95); };
+const heroSpritePos = (pi) => { const [r, c] = HQ_POS[slotOf(pi)]; return new THREE.Vector3(c ? 3.95 : -3.95, 1.1, r ? 4.05 : -3.95); };
 function heroTex(char, owner) {
   const C = CHARACTERS[char];
-  return canvasTex('hero' + char + owner, 256, 300, (g, w) => {
+  return canvasTex('hero' + char + slotOf(owner), 256, 300, (g, w) => {
     const gr = g.createRadialGradient(w / 2, 120, 10, w / 2, 120, 118);
     gr.addColorStop(0, C.color); gr.addColorStop(.7, '#141a33'); gr.addColorStop(1, 'rgba(20,26,51,0)');
     g.fillStyle = gr; g.beginPath(); g.arc(w / 2, 120, 118, 0, Math.PI * 2); g.fill();
-    g.lineWidth = 8; g.strokeStyle = PCSS[owner]; g.beginPath(); g.arc(w / 2, 120, 92, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 8; g.strokeStyle = pcss(owner); g.beginPath(); g.arc(w / 2, 120, 92, 0, Math.PI * 2); g.stroke();
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '100px serif'; g.fillText(C.icon, w / 2, 124);
     g.font = 'bold 34px system-ui, sans-serif'; g.fillStyle = '#fff'; g.shadowColor = '#000'; g.shadowBlur = 8; g.fillText(C.name, w / 2, 268);
   });
@@ -926,6 +926,10 @@ async function heroBurst(pi) {
 
 // ---------- game state ----------
 let S = null;
+// A player's colour and HQ corner come from their slot (the colour they picked), not from their turn order.
+const slotOf = (i) => S.players[i].slot;
+const pcss = (i) => PCSS[slotOf(i)];
+const pcol = (i) => PCOL[slotOf(i)];
 const dead = (id) => !S || S.over || S.turnId !== id;
 const isHumanTurn = () => S && !S.over && !S.players[S.cur].ai;
 
@@ -979,14 +983,21 @@ function resolveChars(picks, n) {
 async function startGame(mode, n, picks = []) {
   hideOverlay(); tweens.length = 0; SFX.start(); SFX.play('start');
   n = Math.max(2, Math.min(MAX_PLAYERS, n | 0 || 2));
+  let slots = [0, 1, 2, 3].slice(0, n);
+  if (mode === 'remote') {
+    const phones = [0, 1, 2, 3].filter((k) => remoteSeats[k].taken);
+    n = Math.max(n, phones.length); slots = [...phones];
+    const opposite = [1, 0, 3, 2];
+    while (slots.length < n) slots.push(slots.map((k) => opposite[k]).find((k) => !slots.includes(k)) ?? [0, 1, 2, 3].find((k) => !slots.includes(k)));
+  }
   document.body.classList.toggle('remote', mode === 'remote'); document.body.classList.remove('pipon'); resize();
-  const chars = resolveChars(mode === 'remote' ? remoteChars.slice(0, n) : picks, n);
-  const humanSeat = (i) => mode === 'pvp' ? true : mode === 'ai' ? i === 0 && !AUTOPLAY : remoteSeats[i].taken;
-  const players = chars.map((char, i) => ({ i, char, alive: true, ai: !humanSeat(i), hand: [], superUsed: false, ki: false,
+  const chars = resolveChars(mode === 'remote' ? slots.map((k) => remoteChars[k]) : picks, n);
+  const humanSeat = (i) => mode === 'pvp' ? true : mode === 'ai' ? i === 0 && !AUTOPLAY : remoteSeats[slots[i]].taken;
+  const players = chars.map((char, i) => ({ i, slot: slots[i], char, alive: true, ai: !humanSeat(i), hand: [], superUsed: false, ki: false,
     lucky: 0, sabotaged: 0, reroll: 0, double: false, equal: false, second: 0,
     name: CHARACTERS[char].name + (!humanSeat(i) ? ' (AI)' : '') }));
   S = { mode, n, cur: 0, turn: 0, turnId: 0, tokens: 0, claims: 0, phase: 'busy', timeLeft: ROUND_SECONDS, started: false, over: false,
-    chars, players, tiles: [], deck: [], discard: [], current: null, peek: null, peek2: null, pending: null, targets: [], streak: 0 };
+    chars, players, playerBySlot: Object.fromEntries(slots.map((k, i) => [k, i])), tiles: [], deck: [], discard: [], current: null, peek: null, peek2: null, pending: null, targets: [], streak: 0 };
   if (curMesh) { pile.remove(curMesh); curMesh = null; }
   buildBoard(); buildDeck(); placeHeroes(); buildHud();
   for (const p of S.players) for (let k = p.char === 'duelist' ? 2 : 1; k > 0; k--) { const i = S.deck.findIndex((c) => c.kind === 'action'); p.hand.push(S.deck.splice(i, 1)[0]); }
@@ -1006,7 +1017,7 @@ async function beginTurn() {
   if (d[S.cur] >= DOM_WIN[S.n]) return gameOver(S.cur, 'dominance');
   S.phase = S.mode === 'pvp' ? 'pass' : 'busy'; updateUI();
   if (S.mode === 'pvp') await passScreen(p);
-  else await banner(S.mode === 'ai' && !p.ai ? 'Your turn' : `${p.name}'s turn`, PCSS[S.cur]);
+  else await banner(S.mode === 'ai' && !p.ai ? 'Your turn' : `${p.name}'s turn`, pcss(S.cur));
   if (dead(id)) return;
   S.phase = 'guess'; updateUI();
   if (!p.ai) SFX.play('turn');
@@ -1105,7 +1116,7 @@ async function eliminate(victim, by, hqTile) {
   if (heroSprites[victim]) heroSprites[victim].material.opacity = .2;
   if (alive().length === 1) return gameOver(by, 'flag');
   SFX.play('eliminate');
-  await banner(`${v.name} is eliminated!`, PCSS[victim], 1300);
+  await banner(`${v.name} is eliminated!`, pcss(victim), 1300);
   say(`${S.players[by].name} captured ${v.name}'s HQ.`);
   buildHud(); updateUI();
 }
@@ -1329,8 +1340,8 @@ function gameOver(winner, reason) {
   S.result = { title, why, winner };
   SFX.play(winner < 0 ? 'draw' : (S.mode === 'ai' && winner !== 0) ? 'lose' : 'win');
   const used = ROUND_SECONDS - Math.max(0, S.timeLeft);
-  showOverlay(`<h2 style="color:${winner < 0 ? '#fff' : PCSS[winner]}">${title}</h2><p>${why}</p>
-    <ul>${S.players.map((p) => `<li style="color:${PCSS[p.i]}">${CHARACTERS[p.char].icon} ${p.name}: ${d[p.i]}% dominance${p.alive ? '' : ' · eliminated'}</li>`).join('')}
+  showOverlay(`<h2 style="color:${winner < 0 ? '#fff' : pcss(winner)}">${title}</h2><p>${why}</p>
+    <ul>${S.players.map((p) => `<li style="color:${pcss(p.i)}">${CHARACTERS[p.char].icon} ${p.name}: ${d[p.i]}% dominance${p.alive ? '' : ' · eliminated'}</li>`).join('')}
     <li>Play time: ${Math.floor(used / 60)}:${String(Math.floor(used % 60)).padStart(2, '0')} · ${S.turn + 1} turns</li></ul>
     <div class="btns"><button data-again>Play again</button><button class="alt" data-menu>Menu</button></div>`);
   pushRemote();
@@ -1360,7 +1371,7 @@ function updateFloats(dt) {
 function setTargets(ts) { if (S) S.targets = ts; }
 function passScreen(p) {
   return new Promise((res) => {
-    showOverlay(`<h2 style="color:${PCSS[p.i]}">${CHARACTERS[p.char].icon} ${p.name}'s turn</h2><p>Pass the device. Your action cards stay hidden until you continue.</p>
+    showOverlay(`<h2 style="color:${pcss(p.i)}">${CHARACTERS[p.char].icon} ${p.name}'s turn</h2><p>Pass the device. Your action cards stay hidden until you continue.</p>
       <div class="btns"><button id="goPass">I'm ready</button></div>`);
     $('goPass').onclick = () => { hideOverlay(); res(); };
   });
@@ -1368,12 +1379,12 @@ function passScreen(p) {
 const statusIcons = (p) => [p.lucky && '🪙', p.ki && '💥', p.reroll && '🎲', p.sabotaged && '💣', p.double && '⚡', p.equal && '⚖️', p.second && '🍀'].filter(Boolean).join(' ');
 function buildHud() {
   const left = $('leftSide'), right = $('rightSide'); left.innerHTML = right.innerHTML = '';
-  const order = [0, 2, 1, 3].filter((i) => i < S.n);
+  const order = S.players.map((p) => p.i).sort((a, b) => [0, 2, 1, 3].indexOf(slotOf(a)) - [0, 2, 1, 3].indexOf(slotOf(b)));
   for (const i of order) {
-    const el = document.createElement('div'); el.className = 'pinfo'; el.id = 'pinfo' + i; el.style.setProperty('--pc', PCSS[i]);
-    (i === 0 || i === 2 ? left : right).append(el);
+    const el = document.createElement('div'); el.className = 'pinfo'; el.id = 'pinfo' + i; el.style.setProperty('--pc', pcss(i));
+    (HQ_POS[slotOf(i)][1] === 0 ? left : right).append(el);
   }
-  $('dombar').innerHTML = S.players.map((p) => `<div id="dom${p.i}" style="background:${PCSS[p.i]}"></div>`).join('') + '<div style="flex:1"></div>';
+  $('dombar').innerHTML = S.players.map((p) => `<div id="dom${p.i}" style="background:${pcss(p.i)}"></div>`).join('') + '<div style="flex:1"></div>';
 }
 function updateUI() {
   if (!S) return;
@@ -1381,7 +1392,7 @@ function updateUI() {
   for (const p of S.players) {
     const el = $('pinfo' + p.i); if (!el) continue;
     const C = CHARACTERS[p.char], tiles = S.tiles.filter((t) => t.owner === p.i).length;
-    const off = S.mode === 'remote' && !p.ai && !remoteSeats[p.i].online ? ' 📵' : '';
+    const off = S.mode === 'remote' && !p.ai && !remoteSeats[p.slot].online ? ' 📵' : '';
     el.classList.toggle('active', S.cur === p.i && !S.over); el.classList.toggle('dead', !p.alive);
     el.innerHTML = `<div class="nm">${C.icon} ${p.name}${off} ${p.superUsed ? '' : `<span title="${C.superName} available">${C.superIcon}</span>`} ${statusIcons(p)}</div>
       <div class="st">🏠 ${tiles} · ⭐ ${ownedValue(p.i)} · ${Math.round(d[p.i] * 100)}% · 💎 ${beaconCount(p.i)}/${need} · 🂠 ${p.hand.length}</div>`;
@@ -1577,21 +1588,22 @@ setInterval(() => { if (performance.now() - lastStep > 200) step(); }, 100);
 // ---------- phones as controllers (server.mjs) ----------
 let remoteSeats = Array.from({ length: MAX_PLAYERS }, () => ({ taken: false, online: false }));
 let remoteChars = [null, null, null, null], remoteCount = 2;
-function remoteState(seat) {
-  if (!S || seat >= S.n) return { lobby: true, seat, chars: remoteChars, count: remoteCount, heroes: heroList() };
-  const p = S.players[seat], mine = S.cur === seat && !S.over && !p.ai;
+function remoteState(slot) {
+  const seat = S?.playerBySlot?.[slot];
+  if (!S || seat == null) return { lobby: true, seat: slot, chars: remoteChars, count: remoteCount, heroes: heroList() };
+  const p = S.players[seat], mine = S.cur === seat && !S.over && !p.ai, d = dominance();
   return {
-    seat, n: S.n, name: p.name, alive: p.alive, cur: S.cur, curName: S.players[S.cur].name, myTurn: mine, phase: S.phase,
+    seat: slot, n: S.n, name: p.name, alive: p.alive, cur: S.cur, curName: S.players[S.cur].name, myTurn: mine, phase: S.phase,
     card: S.current && { label: cardLabel(S.current), red: S.current.suit === 1 || S.current.suit === 2 },
     tokens: S.tokens, claims: S.claims, msg: $('msg').textContent, peek: mine && S.peek ? cardLabel(S.peek) + (S.peek2 ? ` · then ${cardLabel(S.peek2)}` : '') : '',
     hand: p.hand.map((c) => ({ id: c.id, name: ACTIONS[c.id].name, icon: ACTIONS[c.id].icon, text: ACTIONS[c.id].text,
       playable: mine && S.phase === 'guess' && canPlay(seat, c.id) })),
-    tiles: S.tiles.map((t) => ({ k: t.kind, o: t.owner, v: t.value, ob: t.obs, b: t.bType, s: t.shield, f: t.fort, tr: t.trap === seat, t: mine && S.targets.includes(t) })),
-    players: S.players.map((x) => ({ name: x.name, icon: CHARACTERS[x.char].icon, alive: x.alive, beacons: beaconCount(x.i) })),
+    tiles: S.tiles.map((t) => ({ k: t.kind, o: t.owner >= 0 ? slotOf(t.owner) : -1, v: t.value, ob: t.obs, b: t.bType, s: t.shield, f: t.fort, tr: t.trap === seat, t: mine && S.targets.includes(t) })),
+    players: S.players.map((x) => ({ slot: x.slot, name: x.name, icon: CHARACTERS[x.char].icon, alive: x.alive, beacons: beaconCount(x.i), dom: Math.round(d[x.i] * 100) })),
     beaconsNeeded: beaconsNeeded(), canAttack: canAttackHQ(seat),
     canGuess: mine && S.phase === 'guess', canCash: mine && S.phase === 'guess' && S.tokens > 0, canCancel: mine && S.phase === 'target',
-    timeLeft: Math.max(0, Math.round(S.timeLeft)), dom: dominance().map((x) => Math.round(x * 100)), status: statusIcons(p),
-    over: S.over, result: S.result || null,
+    timeLeft: Math.max(0, Math.round(S.timeLeft)), status: statusIcons(p),
+    over: S.over, result: S.result ? { ...S.result, winner: S.result.winner >= 0 ? slotOf(S.result.winner) : -1 } : null,
     hero: { id: p.char, ...CHARACTERS[p.char], glow: undefined }, superUsed: p.superUsed, canSuper: mine && canSuper(seat),
   };
 }
@@ -1612,13 +1624,13 @@ function pushLobby() {
 }
 // Picture-in-picture: a read-only copy of the active player's phone, fed with the same state the phone gets.
 function updatePip() {
-  const on = !!(S && S.mode === 'remote' && !S.over && S.started && !S.players[S.cur].ai && remoteSeats[S.cur].taken);
+  const on = !!(S && S.mode === 'remote' && !S.over && S.started && !S.players[S.cur].ai && remoteSeats[slotOf(S.cur)].taken);
   if (document.body.classList.contains('pipon') !== on) { document.body.classList.toggle('pipon', on); resize(); }
   if (!on) return;
   const p = S.players[S.cur], C = CHARACTERS[p.char];
-  $('pip').style.setProperty('--pc', PCSS[S.cur]);
+  $('pip').style.setProperty('--pc', pcss(S.cur));
   $('pipLbl').textContent = `📱 ${C.icon} ${p.name}'s phone`;
-  $('pipView').contentWindow?.postMessage({ type: 'state', seat: S.cur, state: remoteState(S.cur) }, location.origin);
+  $('pipView').contentWindow?.postMessage({ type: 'state', seat: slotOf(S.cur), state: remoteState(slotOf(S.cur)) }, location.origin);
 }
 function fitPip() {
   const f = $('pipFrame'), v = $('pipView'); if (!f.clientWidth) return;
@@ -1626,8 +1638,9 @@ function fitPip() {
   v.style.transform = `scale(${k})`; v.style.height = f.clientHeight / k + 'px';
 }
 function handleRemote(c) {
+  const pi = S?.playerBySlot?.[c.seat];
   if (c.a === 'touch') {
-    if (S?.mode !== 'remote' || S.over || c.seat !== S.cur) return;
+    if (S?.mode !== 'remote' || S.over || pi !== S.cur) return;
     $('pipView').contentWindow?.postMessage({ type: 'touch', k: String(c.k) }, location.origin);
     const m = /^tile:(\d+)$/.exec(String(c.k)); if (m && S.tiles[+m[1]]) S.tiles[+m[1]].touchT = elapsed;
     return;
@@ -1640,12 +1653,12 @@ function handleRemote(c) {
     }
     return;
   }
-  if (!S || S.over || S.mode !== 'remote' || c.seat !== S.cur || S.players[c.seat].ai) return;
+  if (!S || S.over || S.mode !== 'remote' || pi == null || pi !== S.cur || S.players[pi].ai) return;
   if (c.a === 'guess') guess(c.dir === 'lower' ? 'lower' : 'higher');
   else if (c.a === 'cash') cashIn();
-  else if (c.a === 'play') playCard(c.seat, c.idx | 0);
+  else if (c.a === 'play') playCard(pi, c.idx | 0);
   else if (c.a === 'cancel') cancelTarget();
-  else if (c.a === 'super') useSuper(c.seat);
+  else if (c.a === 'super') useSuper(pi);
   else if (c.a === 'tile') chooseTile(S.tiles[c.i | 0]);
 }
 let remoteInfo = { urls: [] };
@@ -1666,11 +1679,12 @@ async function showLobby() {
 }
 function renderSeats() {
   const el = $('seats'); if (!el) return;
-  el.innerHTML = remoteSeats.map((s, i) => { const C = CHARACTERS[remoteChars[i]], used = i < remoteCount;
-    return `<div class="seat ${s.online ? 'on' : ''} ${used ? '' : 'off'}" style="--pc:${PCSS[i]}">${COLOR_NAMES[i]}: <span>${!used ? 'not in this game' : s.online ? '📱 connected' : s.taken ? '⚠️ connection lost' : 'waiting for a phone… (else AI)'}${C ? ` · ${C.icon} ${C.name}` : s.taken && used ? ' · choosing a hero…' : ''}</span></div>`; }).join('');
-  const humans = remoteSeats.slice(0, remoteCount).filter((s) => s.taken).length;
+  const humans = remoteSeats.filter((s) => s.taken).length, ai = Math.max(0, remoteCount - humans);
+  el.innerHTML = remoteSeats.map((s, i) => { const C = CHARACTERS[remoteChars[i]];
+    return `<div class="seat ${s.online ? 'on' : ''} ${s.taken ? '' : 'off'}" style="--pc:${PCSS[i]}">${COLOR_NAMES[i]}: <span>${s.online ? '📱 connected' : s.taken ? '⚠️ connection lost' : 'free'}${C && s.taken ? ` · ${C.icon} ${C.name}` : s.taken ? ' · choosing a hero…' : ''}</span></div>`; }).join('')
+    + `<p style="font-size:12px;color:#8891b0;margin:6px 0 0">Every connected phone plays in the colour it picked${ai ? `; ${ai} AI rival${ai > 1 ? 's' : ''} fill${ai > 1 ? '' : 's'} up to ${remoteCount} players` : ''}.</p>`;
   $('goRemote').disabled = humans === 0;
-  $('goRemote').textContent = humans ? `Start: ${humans} phone${humans > 1 ? 's' : ''}${humans < remoteCount ? ` + ${remoteCount - humans} AI` : ''}` : 'Waiting for a phone…';
+  $('goRemote').textContent = humans ? `Start: ${humans} phone${humans > 1 ? 's' : ''}${ai ? ` + ${ai} AI` : ''}` : 'Waiting for a phone…';
 }
 if (REMOTE) {
   $('pipView').src = '/play?mirror=1';
