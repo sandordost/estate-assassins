@@ -82,6 +82,14 @@
   .foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
   .foot button { background: none; color: var(--muted); text-decoration: underline; padding: 4px; }
   .conn { font-size: 12px; text-align: center; color: var(--p1); }
+  /* Mirror: read-only copy shown picture-in-picture on the PC */
+  .mirror button { pointer-events: none; }
+  .mirror .foot { display: none; }
+  .hcard.back { background: repeating-linear-gradient(45deg, #142a5c 0 8px, #1b3570 8px 16px); justify-content: center; }
+  .pressed { transform: scale(.94); filter: brightness(1.35); transition: transform .08s, filter .08s; }
+  .tap { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; pointer-events: none; z-index: 50;
+    background: rgba(255,255,255,.55); border: 3px solid #fff; box-shadow: 0 0 18px rgba(255,255,255,.8); animation: tap .7s ease-out forwards; }
+  @keyframes tap { 0% { transform: scale(.4); opacity: 1; } 60% { opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -110,11 +118,11 @@
     </div>
     <div class="peek" id="peek"></div>
     <div class="actions" id="actions">
-      <button id="bLower">▼ Lager</button>
-      <button id="bHigher">▲ Hoger</button>
-      <button class="cash" id="bCash">Claim vastgoed</button>
-      <button class="super hidden" id="bSuper">Super</button>
-      <button class="cancel hidden" id="bCancel">Annuleer kaart</button>
+      <button id="bLower" data-k="lower">▼ Lager</button>
+      <button id="bHigher" data-k="higher">▲ Hoger</button>
+      <button class="cash" id="bCash" data-k="cash">Claim vastgoed</button>
+      <button class="super hidden" id="bSuper" data-k="super">Super</button>
+      <button class="cancel hidden" id="bCancel" data-k="cancel">Annuleer kaart</button>
     </div>
     <div id="ingame">
     <h3>Bord <span id="boardHint" style="text-transform:none;letter-spacing:0"></span></h3>
@@ -133,7 +141,9 @@ let myId = store.get('hg-id');
 if (!myId) { myId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('hg-id', myId); }
 // Small synthesised sounds on the phone itself (the PC plays the full soundtrack).
 let actx = null;
+const MIRROR = new URLSearchParams(location.search).has('mirror');
 function sfx(notes, type = 'triangle', vol = .07) {
+  if (MIRROR) return;
   try {
     actx ??= new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
@@ -144,7 +154,7 @@ function sfx(notes, type = 'triangle', vol = .07) {
     });
   } catch { /* audio is optional */ }
 }
-const buzz = (p) => { try { navigator.vibrate?.(p); } catch { /* optional */ } };
+const buzz = (p) => { if (MIRROR) return; try { navigator.vibrate?.(p); } catch { /* optional */ } };
 document.addEventListener('click', (e) => { if (e.target.closest('button:not(:disabled)')) sfx([[1100, 0, .04]], 'square', .03); }, true);
 let seat = null, es = null, state = null, busy = false, wasMyTurn = false, wasOver = false;
 const ICON = { 1: '🏠', 2: '🏪', 3: '🏢' };
@@ -226,7 +236,7 @@ function render() {
   $('msg').textContent = s.msg || '';
   $('card').textContent = s.card ? s.card.label : '?'; $('card').classList.toggle('red', !!s.card?.red);
   $('tokens').innerHTML = `${s.tokens ? '★'.repeat(Math.min(s.tokens, 6)) : 0}<small>${s.phase === 'claim' && s.myTurn ? `${s.claims} te claimen` : 'claims'}</small>`;
-  $('peek').textContent = s.peek ? `🔭 Volgende kaart: ${s.peek}` : '';
+  $('peek').textContent = s.peek ? (MIRROR ? '🔭 Kijkt stiekem naar de volgende kaart…' : `🔭 Volgende kaart: ${s.peek}`) : '';
   $('bLower').disabled = $('bHigher').disabled = busy || !s.canGuess;
   $('bCash').disabled = busy || !s.canCash;
   $('bCash').textContent = s.myTurn && s.phase === 'claim' ? 'Tik hieronder een oplichtend vakje' : `Claim vastgoed (${s.tokens})`;
@@ -241,15 +251,16 @@ function render() {
     const t = s.tiles[i], b = document.createElement('button');
     b.className = `tile${t.o >= 0 ? ' o' + t.o : ''}${t.t ? ' t' : ''}`;
     b.innerHTML = `${t.f >= 0 ? '🚩' : ICON[t.v]}${t.f >= 0 ? '' : `<span class="v">${t.v}</span>`}${t.s ? '<span class="sh">🛡️</span>' : ''}`;
-    b.disabled = busy || !t.t;
+    b.dataset.k = 'tile:' + i; b.disabled = busy || !t.t;
     if (t.t) b.onclick = () => cmd('tile', { i });
     board.append(b);
   }
 
   const hand = $('hand'); hand.innerHTML = '';
   s.hand.forEach((c, idx) => {
-    const b = document.createElement('button'); b.className = 'hcard';
-    b.innerHTML = `<span class="ic">${c.icon}</span><b>${c.name}</b><small>${c.text}</small>`;
+    const b = document.createElement('button'); b.className = 'hcard' + (MIRROR ? ' back' : ''); b.dataset.k = 'hand:' + idx;
+    // The mirror on the shared screen never reveals the hand to the opponent.
+    b.innerHTML = MIRROR ? '<span class="ic">🂠</span><b>Actiekaart</b><small>Geheim</small>' : `<span class="ic">${c.icon}</span><b>${c.name}</b><small>${c.text}</small>`;
     b.disabled = busy || !c.playable;
     b.onclick = () => cmd('play', { idx });
     hand.append(b);
@@ -261,7 +272,7 @@ function render() {
   if (s.over && s.result) {
     const win = s.result.winner === seat, color = s.result.winner < 0 ? '#fff' : s.result.winner ? 'var(--p1)' : 'var(--p0)';
     res.innerHTML = `<h2 style="color:${color}">${s.result.winner < 0 ? 'Gelijkspel' : win ? 'Je wint! 🏆' : s.result.title}</h2><div>${s.result.why}</div><button id="again">Nog een ronde</button>`;
-    $('again').onclick = () => cmd('restart');
+    $('again').dataset.k = 'again'; $('again').onclick = () => cmd('restart');
   }
 }
 
@@ -276,8 +287,38 @@ $('leave').onclick = async () => {
   es?.close(); store.set('hg-seat', ''); showJoin();
 };
 
-const saved = store.get('hg-seat');
-if (saved === '0' || saved === '1') join(+saved); else showJoin();
+// Report every touch to the PC so the picture-in-picture mirror can show where the player taps.
+let lastTouch = 0;
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('[data-k]'); if (!el || seat == null || MIRROR) return;
+  const now = Date.now(); if (now - lastTouch < 60) return; lastTouch = now;
+  fetch('/cmd', { method: 'POST', body: JSON.stringify({ seat, id: myId, a: 'touch', k: el.dataset.k }) }).catch(() => {});
+}, true);
+function showTouch(k) {
+  const el = document.querySelector(`[data-k="${CSS.escape(k)}"]`); if (!el) return;
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  setTimeout(() => {
+    const r = el.getBoundingClientRect(), dot = document.createElement('div');
+    dot.className = 'tap'; dot.style.left = r.left + r.width / 2 + scrollX + 'px'; dot.style.top = r.top + r.height / 2 + scrollY + 'px';
+    document.body.append(dot); setTimeout(() => dot.remove(), 750);
+    const fresh = document.querySelector(`[data-k="${CSS.escape(k)}"]`);
+    fresh?.classList.add('pressed'); setTimeout(() => fresh?.classList.remove('pressed'), 260);
+  }, 120);
+}
+
+if (MIRROR) {
+  document.body.classList.add('mirror');
+  $('join').classList.add('hidden'); $('game').classList.remove('hidden');
+  addEventListener('message', (e) => {
+    if (e.origin !== location.origin) return;
+    const m = e.data || {};
+    if (m.type === 'state') { seat = m.seat; document.body.classList.toggle('seat1', seat === 1); state = m.state; render(); }
+    else if (m.type === 'touch') showTouch(m.k);
+  });
+} else {
+  const saved = store.get('hg-seat');
+  if (saved === '0' || saved === '1') join(+saved); else showJoin();
+}
 </script>
 </body>
 </html>

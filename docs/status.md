@@ -1,6 +1,6 @@
 # Status Higher Ground
 
-Bijgewerkt: 2 oktober 2026 (versie 0.3.0).
+Bijgewerkt: 2 oktober 2026 (versie 0.4.0).
 
 ## Bewezen
 
@@ -9,6 +9,7 @@ Bijgewerkt: 2 oktober 2026 (versie 0.3.0).
 - End-to-end telefoonmodus (bord + 2 telefoonpagina's via `server.mjs`): stoel kiezen, held kiezen, raden, claimen,
   actiekaarten, supers, einde en "Nog een ronde" vanaf de telefoon; een derde telefoon kan geen bezette stoel overnemen;
   een stoel waarvan de telefoon is verdwenen kan door een andere telefoon worden overgenomen.
+- Scherm-in-scherm: spiegel volgt de speler aan de beurt, toont tikken (ook op het 3D-bord) en verbergt de hand; getest met 2 headless telefoons.
 - Layout gecontroleerd op 1280×800 en 390×844.
 
 ## Onbewezen

@@ -15,6 +15,8 @@ node server.mjs          # of: npm start; andere poort: PORT=9000 node server.mj
 1. Open `http://localhost:8080` op de pc → **Spelen met telefoons**.
 2. Beide telefoons op hetzelfde wifi-netwerk: scan de QR-code of open het getoonde adres (`http://<pc-ip>:8080/play`).
 3. Kies op de telefoon je kleur en held. Start daarna op de pc. Een stoel zonder telefoon speelt de AI.
+4. Tijdens het spel toont de pc rechts een live spiegel (scherm-in-scherm) van de telefoon van wie aan de beurt is,
+   met een tik-animatie bij elke aanraking. Actiekaarten en geheime blikken blijven daarin verborgen.
 
 **Zonder server:** open `index.html` en speel tegen de AI of met 2 spelers op hetzelfde scherm.
 Internet is nodig voor Three.js (en voor de QR-code in de lobby).

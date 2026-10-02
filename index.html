@@ -26,6 +26,16 @@
   .hero .ht { font-size: 12px; color: var(--muted); text-align: center; margin-top: -4px; }
   .hero .hp { font-size: 12px; } .hero .hs { font-size: 12px; color: #f2d06e; }
   @media (max-width: 640px) { .heroes { grid-template-columns: 1fr; } .hero .hi { font-size: 30px; } }
+  #pip { position: absolute; right: 12px; top: 76px; bottom: 12px; width: var(--pipw); display: none; flex-direction: column; gap: 6px; z-index: 5; }
+  :root { --pipw: 330px; }
+  body.remote.pipon #pip { display: flex; }
+  body.remote.pipon #c { width: calc(100% - var(--pipw) - 24px); }
+  body.remote.pipon #help, body.remote.pipon #mute { right: calc(var(--pipw) + 24px); }
+  #pip .lbl { font-weight: 800; text-align: center; color: var(--pc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pip .frame { flex: 1; border-radius: 30px; border: 5px solid var(--pc); background: #0b1020; overflow: hidden; position: relative;
+    box-shadow: 0 0 34px color-mix(in srgb, var(--pc) 45%, transparent); transition: border-color .3s, box-shadow .3s; }
+  #pip iframe { position: absolute; left: 0; top: 0; width: 390px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  @media (max-width: 900px) { :root { --pipw: 210px; } }
   #mute { position: absolute; top: 112px; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); }
   #bSuper { background: linear-gradient(135deg, var(--sc, #b07cff), #2a3350); }
   .lobby { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; margin-top: 10px; }
@@ -141,6 +151,7 @@
   </div>
   <div id="hand"></div>
 </div>
+<div id="pip"><div class="lbl" id="pipLbl"></div><div class="frame" id="pipFrame"><iframe id="pipView" title="Telefoon van de speler die aan de beurt is" tabindex="-1"></iframe></div></div>
 <div id="banner"></div>
 <div id="tip"></div>
 <div id="overlay"></div>
@@ -150,7 +161,7 @@ import * as THREE from 'three';
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 let remoteSeats = [{ taken: false, online: false }, { taken: false, online: false }];
 const COLS = 5, ROWS = 6, SP = 1.15, HAND_MAX = 5, ROUND_SECONDS = 600, DOM_WIN = 0.6;
 const PCSS = ['#3fa9ff', '#ff5a4f'];
@@ -327,7 +338,13 @@ base.position.y = -.2; base.receiveShadow = true; base.castShadow = true; scene.
   scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: .12, sizeAttenuation: true, fog: false })));
 }
 
+function fitPip() {
+  const f = $('pipFrame'), v = $('pipView'); if (!f.clientWidth) return;
+  const k = f.clientWidth / 390;
+  v.style.transform = `scale(${k})`; v.style.height = f.clientHeight / k + 'px';
+}
 function resize() {
+  fitPip();
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h;
   const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -1066,7 +1083,8 @@ function step() {
   updateTweens(dt); updateFloats(dt);
   if (S) {
     for (const t of S.tiles) {
-      t.mesh.material.emissiveIntensity = S.targets.includes(t) ? .25 + Math.sin(elapsed * 6) * .2 : 0;
+      const touched = t.touchT != null && elapsed - t.touchT < .6;
+      t.mesh.material.emissiveIntensity = touched ? .9 * (1 - (elapsed - t.touchT) / .6) : S.targets.includes(t) ? .25 + Math.sin(elapsed * 6) * .2 : 0;
       t.mesh.position.y = S.targets.includes(t) ? Math.sin(elapsed * 6) * .025 + .03 : 0;
       const cloth = t.bld.userData.cloth;
       if (cloth) {
@@ -1117,15 +1135,32 @@ function pushRemote() {
     pushTimer = null;
     if (S?.mode !== 'remote') return;
     fetch('/state', { method: 'POST', body: JSON.stringify({ seats: [remoteState(0), remoteState(1)] }) }).catch(() => {});
+    updatePip();
   }, 40);
 }
 let remoteChars = [null, null];
+// Picture-in-picture: a read-only copy of the current player's phone, fed with the same state the phone gets.
+function updatePip() {
+  const on = !!(S && S.mode === 'remote' && !S.over && S.started && !S.players[S.cur].ai && remoteSeats[S.cur].taken);
+  if (document.body.classList.contains('pipon') !== on) { document.body.classList.toggle('pipon', on); resize(); }
+  if (!on) return;
+  const p = S.players[S.cur], C = CHARACTERS[p.char];
+  $('pip').style.setProperty('--pc', PCSS[S.cur]);
+  $('pipLbl').textContent = `📱 Telefoon van ${C.icon} ${p.name}`;
+  $('pipView').contentWindow?.postMessage({ type: 'state', seat: S.cur, state: remoteState(S.cur) }, location.origin);
+}
 function pushLobby() {
   if (!REMOTE) return;
   const heroes = CHAR_IDS.map((id) => ({ id, ...CHARACTERS[id], glow: undefined }));
   fetch('/state', { method: 'POST', body: JSON.stringify({ seats: [0, 1].map((seat) => ({ lobby: true, seat, chars: remoteChars, heroes })) }) }).catch(() => {});
 }
 function handleRemote(c) {
+  if (c.a === 'touch') {
+    if (S?.mode !== 'remote' || S.over || c.seat !== S.cur) return;
+    $('pipView').contentWindow?.postMessage({ type: 'touch', k: String(c.k) }, location.origin);
+    const m = /^tile:(\d+)$/.exec(String(c.k)); if (m && S.tiles[+m[1]]) S.tiles[+m[1]].touchT = elapsed;
+    return;
+  }
   if (c.a === 'restart') { if (S?.mode === 'remote' && S.over) startGame('remote'); return; }
   if (c.a === 'char') {
     if (S?.mode === 'remote' && !S.over) return;
@@ -1163,6 +1198,8 @@ function renderSeats() {
   $('goRemote').disabled = n === 0; $('goRemote').textContent = n === 2 ? 'Start: 2 spelers' : n === 1 ? 'Start: telefoon tegen AI' : 'Wacht op een telefoon…';
 }
 if (REMOTE) {
+  $('pipView').src = '/play?mirror=1';
+  $('pipView').addEventListener('load', () => { fitPip(); updatePip(); });
   const es = new EventSource('/events?role=display');
   es.addEventListener('seats', (e) => { remoteSeats = JSON.parse(e.data); renderSeats(); if (S?.mode === 'remote') updateUI(); });
   es.addEventListener('cmd', (e) => handleRemote(JSON.parse(e.data)));
