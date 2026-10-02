@@ -4,130 +4,217 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Estate Assassins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@500;600;700;800&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
+  /* ===== Estate Assassins theme: obsidian, antique gold, a single blood-red accent ===== */
   :root {
-    --bg: #070a18; --panel: rgba(14, 18, 38, .88); --line: rgba(255, 255, 255, .12);
-    --text: #eef1ff; --muted: #9aa3c4; --gold: #e8c25a; --pipw: 330px;
-    --p0: #3fa9ff; --p1: #ff5a4f; --p2: #45d483; --p3: #ffc23d;
+    --ink: #0a090e; --ink-2: #121019; --ink-3: #1b1824; --ink-4: #262131;
+    --gold: #d2ae6b; --gold-hi: #f4dda2; --gold-lo: #8b6a37; --gold-deep: #5a4222;
+    --blood: #a3243a; --blood-hi: #d8445c;
+    --text: #ece3cf; --muted: #a59b86; --faint: #6f6757;
+    --p0: #4f8dff; --p1: #e24a5a; --p2: #35c47f; --p3: #f0b13c;
+    --pipw: 330px;
+    --display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+    --deco: 'Cinzel Decorative', 'Cinzel', Georgia, serif;
+    --body: 'Spectral', Georgia, 'Times New Roman', serif;
+    /* 9-slice gilded frame used by every panel */
+    --frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23c9a45c'%3E%3Crect x='1.5' y='1.5' width='45' height='45' stroke-width='1.4'/%3E%3Crect x='5.5' y='5.5' width='37' height='37' stroke-width='.7' stroke-opacity='.55'/%3E%3C/g%3E%3Cg fill='%23f0d48f' stroke='%235a4222' stroke-width='.6'%3E%3Cpath d='M8 1.5 L13 8 L8 14.5 L3 8Z'/%3E%3Cpath d='M40 1.5 L45 8 L40 14.5 L35 8Z'/%3E%3Cpath d='M8 33.5 L13 40 L8 46.5 L3 40Z'/%3E%3Cpath d='M40 33.5 L45 40 L40 46.5 L35 40Z'/%3E%3C/g%3E%3C/svg%3E");
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden;
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text);
+    font: 15px/1.4 var(--body); overflow: hidden;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   button { font: inherit; color: inherit; cursor: pointer; }
-  #c { position: absolute; left: 0; top: 64px; width: 100%; height: calc(100% - 260px); display: block; touch-action: none; }
-  body.remote #c { height: calc(100% - 64px); }
+  /* Every emoji glyph is cast in the same antique gold so icons read as one engraved set */
+  .glyph { display: inline-block; filter: grayscale(1) sepia(1) saturate(2.6) hue-rotate(-10deg) brightness(1.08) contrast(1.15) drop-shadow(0 0 5px rgba(244,221,162,.35)); }
+  .gem { display: inline-block; width: 11px; height: 11px; transform: rotate(45deg); border-radius: 2px; flex: none;
+    background: radial-gradient(circle at 30% 30%, #fff8, transparent 45%), var(--pc); box-shadow: 0 0 8px var(--pc), inset 0 0 0 1px #0006; }
+
+  #c { position: absolute; left: 0; top: 70px; width: 100%; height: calc(100% - 286px); display: block; touch-action: none; }
+  body.remote #c { height: calc(100% - 70px); }
   body.remote #bottom { display: none; }
   body.remote.pipon #c { width: calc(100% - var(--pipw) - 24px); }
 
-  #top { position: absolute; top: 0; left: 0; right: 0; height: 64px; display: grid;
-    grid-template-columns: 1fr minmax(150px, 240px) 1fr; gap: 8px; padding: 6px 10px; background: var(--panel);
-    border-bottom: 1px solid var(--line); z-index: 2; }
-  .side { display: flex; gap: 6px; min-width: 0; } .side.right { flex-direction: row-reverse; }
-  .pinfo { flex: 1; border-radius: 10px; padding: 4px 10px; border: 2px solid color-mix(in srgb, var(--pc) 30%, transparent); min-width: 0; overflow: hidden; }
-  .side.right .pinfo { text-align: right; }
-  .pinfo .nm { font-weight: 700; color: var(--pc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pinfo .st { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pinfo.active { border-color: var(--pc); background: color-mix(in srgb, var(--pc) 12%, transparent); }
-  .pinfo.dead { opacity: .35; text-decoration: line-through; }
-  #center { text-align: center; }
-  #timer { font-weight: 800; font-size: 20px; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
-  #timer.low { color: var(--p1); }
-  #dombar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #2b3146; margin: 2px 0; }
-  #turnlbl { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ---- panels ---- */
+  .panel { border: 16px solid transparent; border-image: var(--frame) 16 stretch;
+    background: linear-gradient(180deg, rgba(30,26,40,.96), rgba(12,10,17,.97)) padding-box; }
+  .rule { height: 1px; background: linear-gradient(90deg, transparent, var(--gold-lo), var(--gold), var(--gold-lo), transparent); border: 0; margin: 10px 0; }
+  .eyebrow { font: 600 11px/1 var(--display); letter-spacing: .32em; text-transform: uppercase; color: var(--gold); }
 
-  #msg { position: absolute; top: 72px; left: 50%; transform: translateX(-50%); max-width: min(92vw, 600px);
-    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; text-align: center;
-    pointer-events: none; z-index: 2; }
-  body.remote.pipon #msg { left: calc((100% - var(--pipw) - 24px) / 2); }
-  #peek { position: absolute; top: 112px; left: 50%; transform: translateX(-50%); color: var(--gold); font-weight: 700;
-    pointer-events: none; text-shadow: 0 1px 4px #000; z-index: 2; }
-  .round { position: absolute; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line);
-    background: var(--panel); font-weight: 800; z-index: 2; }
-  #help { top: 72px; } #mute { top: 112px; }
+  /* ---- buttons: gilded plaques; obsidian plaques for secondary actions ---- */
+  .btn { position: relative; border: 0; border-radius: 4px; padding: 12px 22px; min-width: 104px; white-space: nowrap;
+    font: 700 14px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: #2b1d08;
+    background: linear-gradient(180deg, #fbe9b6 0%, #e2bf75 38%, #b08540 52%, #d3ad63 78%, #f0d590 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -2px 0 rgba(60,40,10,.35), 0 0 0 1px #3b2a12, 0 0 0 3px var(--ink), 0 0 0 4px var(--gold-lo), 0 8px 18px rgba(0,0,0,.55);
+    text-shadow: 0 1px 0 rgba(255,240,200,.6); transition: filter .15s, transform .08s, box-shadow .15s; }
+  .btn:not(:disabled):hover { filter: brightness(1.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 -2px 0 rgba(60,40,10,.35), 0 0 0 1px #3b2a12, 0 0 0 3px var(--ink), 0 0 0 4px var(--gold), 0 0 22px rgba(244,221,162,.35), 0 8px 18px rgba(0,0,0,.55); }
+  .btn:not(:disabled):active { transform: translateY(1px); }
+  .btn.dark { color: var(--gold-hi); text-shadow: 0 1px 0 #000;
+    background: linear-gradient(180deg, #2c2738 0%, #1a1722 55%, #121019 100%);
+    box-shadow: inset 0 1px 0 rgba(244,221,162,.18), inset 0 0 0 1px rgba(210,174,107,.35), 0 0 0 3px var(--ink), 0 0 0 4px var(--gold-lo), 0 8px 18px rgba(0,0,0,.55); }
+  .btn.dark:not(:disabled):hover { box-shadow: inset 0 1px 0 rgba(244,221,162,.25), inset 0 0 0 1px var(--gold), 0 0 0 3px var(--ink), 0 0 0 4px var(--gold), 0 0 22px rgba(244,221,162,.25); }
+  .btn:disabled { filter: grayscale(.85) brightness(.55); cursor: default; }
+  .btn .glyph { margin-right: 6px; }
+  .round { position: absolute; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0; z-index: 3;
+    font: 700 16px/1 var(--display); color: var(--gold-hi);
+    background: radial-gradient(circle at 35% 30%, #3a3347, #15121c 70%);
+    box-shadow: inset 0 0 0 1px var(--gold-lo), 0 0 0 3px var(--ink), 0 0 0 4px var(--gold-lo), 0 4px 12px #000a; }
+  .round:hover { box-shadow: inset 0 0 0 1px var(--gold), 0 0 0 3px var(--ink), 0 0 0 4px var(--gold), 0 0 16px rgba(244,221,162,.3); }
+  #help { top: 82px; } #mute { top: 132px; }
   body.remote.pipon .round { right: calc(var(--pipw) + 24px); }
 
-  #bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 196px; background: var(--panel);
-    border-top: 1px solid var(--line); padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
-  #controls { display: flex; gap: 8px; align-items: stretch; justify-content: center; }
-  #controls button { border: 0; border-radius: 12px; padding: 10px 16px; font-weight: 800; font-size: 16px; min-width: 96px; white-space: nowrap; }
-  #bLower, #bHigher { background: #2a3350; }
-  #bLower:not(:disabled):hover, #bHigher:not(:disabled):hover { background: #3a4670; }
-  #bCash { background: linear-gradient(#f2d06e, #c99a2c); color: #2a1b00; }
-  #bSuper { background: linear-gradient(135deg, var(--sc, #b07cff), #2a3350); }
-  #bCancel { background: #533; display: none; }
-  #controls button:disabled { opacity: .35; cursor: default; }
-  #tokens { align-self: center; color: var(--gold); font-weight: 800; min-width: 70px; text-align: center; }
-  #hand { flex: 1; display: flex; gap: 8px; overflow-x: auto; justify-content: center; padding-bottom: 2px; }
-  .hcard { flex: 0 0 116px; border: 2px solid var(--gold); border-radius: 10px; padding: 6px; text-align: center; overflow: hidden;
-    background: linear-gradient(#2a1650, #120a2a); display: flex; flex-direction: column; gap: 2px; transition: transform .15s; }
-  .hcard:not(:disabled):hover { transform: translateY(-4px); }
-  .hcard:disabled { opacity: .45; cursor: default; }
-  .hcard .ic { font-size: 24px; line-height: 1.1; }
-  .hcard b { font-size: 12px; } .hcard small { font-size: 10.5px; color: #c9c2e6; line-height: 1.2;
-    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-  .empty { color: var(--muted); align-self: center; text-align: center; font-size: 12px; }
+  /* ---- top HUD ---- */
+  #top { position: absolute; top: 0; left: 0; right: 0; height: 70px; display: grid; z-index: 2;
+    grid-template-columns: 1fr minmax(190px, 260px) 1fr; gap: 10px; padding: 8px 12px;
+    background: linear-gradient(180deg, #17141f, #0d0b12); box-shadow: 0 1px 0 var(--gold-lo), 0 2px 0 var(--ink), 0 3px 0 rgba(210,174,107,.25), 0 10px 30px #000c; }
+  .side { display: flex; gap: 8px; min-width: 0; } .side.right { flex-direction: row-reverse; }
+  .pinfo { flex: 1; min-width: 0; position: relative; padding: 6px 12px 6px 14px; border-radius: 3px; overflow: hidden;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 14%, #1a1722), #14121a 70%);
+    box-shadow: inset 0 0 0 1px rgba(210,174,107,.22); transition: box-shadow .25s; }
+  .pinfo::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--pc); box-shadow: 0 0 10px var(--pc); }
+  .side.right .pinfo { text-align: right; padding: 6px 14px 6px 12px; background: linear-gradient(270deg, color-mix(in srgb, var(--pc) 14%, #1a1722), #14121a 70%); }
+  .side.right .pinfo::before { left: auto; right: 0; }
+  .pinfo .nm { font: 700 14px/1.2 var(--display); letter-spacing: .06em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 6px; align-items: center; }
+  .side.right .pinfo .nm { justify-content: flex-end; }
+  .pinfo .st { margin-top: 3px; color: var(--muted); font: 600 12px/1 var(--display); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pinfo .st b { color: var(--gold-hi); font-weight: 700; }
+  .pinfo.active { box-shadow: inset 0 0 0 1px var(--gold), 0 0 18px rgba(244,221,162,.18); }
+  .pinfo.active .nm::after { content: '◆'; color: var(--gold); font-size: 10px; animation: blink 1.4s infinite; }
+  .pinfo.dead { opacity: .32; filter: grayscale(1); }
+  .pinfo.dead .nm { text-decoration: line-through; }
+  @keyframes blink { 50% { opacity: .2; } }
+  #center { text-align: center; padding-top: 1px; }
+  #timer { font: 700 22px/1 var(--display); letter-spacing: .12em; color: var(--gold-hi); text-shadow: 0 0 12px rgba(244,221,162,.25); }
+  #dombar { display: flex; height: 7px; margin: 6px 4px 4px; background: #0a090e; box-shadow: 0 0 0 1px var(--gold-lo), 0 0 0 3px var(--ink); overflow: hidden; }
+  #dombar > div { transition: width .4s; }
+  #turnlbl { font: 600 10px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    background: rgba(4, 6, 16, .78); backdrop-filter: blur(5px); z-index: 10; padding: 16px; }
+  /* ---- message ribbon ---- */
+  #msg { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); max-width: min(90vw, 620px); z-index: 2;
+    padding: 8px 34px; text-align: center; pointer-events: none; font: italic 15px/1.35 var(--body); color: var(--text);
+    background: linear-gradient(90deg, transparent, rgba(14,12,19,.94) 12%, rgba(14,12,19,.94) 88%, transparent);
+    border-top: 1px solid; border-bottom: 1px solid; border-image: linear-gradient(90deg, transparent, var(--gold-lo), var(--gold), var(--gold-lo), transparent) 1; }
+  body.remote.pipon #msg { left: calc((100% - var(--pipw) - 24px) / 2); }
+  #peek { position: absolute; top: 128px; left: 50%; transform: translateX(-50%); z-index: 2; pointer-events: none;
+    font: 700 13px/1 var(--display); letter-spacing: .12em; color: var(--gold-hi); text-shadow: 0 0 10px #000; }
+
+  /* ---- bottom tray ---- */
+  #bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 216px; padding: 14px 12px 10px; display: flex; flex-direction: column; gap: 12px;
+    background: linear-gradient(0deg, #0b0a0f, #17141f); box-shadow: 0 -1px 0 var(--gold-lo), 0 -2px 0 var(--ink), 0 -3px 0 rgba(210,174,107,.25), 0 -10px 30px #000c; }
+  #controls { display: flex; gap: 14px; align-items: center; justify-content: center; }
+  #tokens { min-width: 86px; text-align: center; font: 700 12px/1 var(--display); letter-spacing: .18em; color: var(--muted); text-transform: uppercase; }
+  #tokens .num { display: block; font-size: 24px; color: var(--gold-hi); letter-spacing: .05em; margin-bottom: 3px; text-shadow: 0 0 12px rgba(244,221,162,.3); }
+  #bCancel { display: none; }
+  #hand { flex: 1; display: flex; gap: 10px; overflow-x: auto; justify-content: center; padding: 2px 4px 4px; }
+  .empty { color: var(--faint); align-self: center; text-align: center; font: italic 14px var(--body); }
+
+  /* ---- action cards as trading cards ---- */
+  .tcg { position: relative; flex: 0 0 112px; height: 132px; padding: 8px 7px 7px; border: 0; border-radius: 7px; text-align: center; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text);
+    background: radial-gradient(circle at 50% 22%, #2d2638, #141119 72%);
+    box-shadow: inset 0 0 0 1px var(--gold-lo), inset 0 0 0 4px #141119, inset 0 0 0 5px rgba(210,174,107,.35), 0 6px 14px #000b;
+    transition: transform .15s, box-shadow .15s; }
+  .tcg:not(:disabled):hover { transform: translateY(-6px); box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 0 4px #141119, inset 0 0 0 5px var(--gold-lo), 0 0 20px rgba(244,221,162,.3), 0 10px 18px #000b; }
+  .tcg:disabled { filter: grayscale(.8) brightness(.6); cursor: default; }
+  .tcg .art { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 21px; flex: none;
+    background: radial-gradient(circle at 40% 35%, #3a3246, #120f18); box-shadow: 0 0 0 1px var(--gold), 0 0 0 3px #120f18, 0 0 0 4px var(--gold-lo); }
+  .tcg .nm { font: 700 10.5px/1.15 var(--display); letter-spacing: .06em; color: var(--gold-hi); text-transform: uppercase; }
+  .tcg .tx { font: 11px/1.2 var(--body); color: #cfc5b0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .tcg.back { background: repeating-linear-gradient(45deg, #1a1622 0 7px, #221d2c 7px 14px); }
+
+  /* ---- overlays ---- */
+  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; padding: 16px;
+    background: radial-gradient(ellipse at center, rgba(20,16,28,.72), rgba(5,4,8,.94)); backdrop-filter: blur(6px); }
   #overlay.hidden { display: none; }
-  .box { background: #10162e; border: 1px solid var(--line); border-radius: 18px; padding: 22px; max-width: 640px;
-    width: 100%; max-height: 100%; overflow: auto; box-shadow: 0 20px 80px rgba(0,0,0,.6); }
-  .box h1 { margin: 0; font-size: 36px; letter-spacing: 3px; background: linear-gradient(90deg, var(--p0), var(--gold), var(--p1));
-    -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .box h2 { margin: 0 0 8px; }
-  .box p { color: #c8cee6; } .box ul { padding-left: 18px; color: #c8cee6; } .box li { margin: 4px 0; }
-  .box .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-  .box .btns button { flex: 1; border: 0; border-radius: 12px; padding: 12px; font-weight: 800; font-size: 15px;
-    background: linear-gradient(#f2d06e, #c99a2c); color: #2a1b00; min-width: 160px; }
-  .box .btns button.alt { background: #2a3350; color: var(--text); }
-  .box .btns button:disabled { opacity: .4; }
-  .count { display: flex; gap: 8px; align-items: center; margin: 10px 0 0; }
-  .count button { border: 2px solid var(--line); background: #1b2442; border-radius: 10px; padding: 8px 16px; font-weight: 800; }
-  .count button.on { border-color: var(--gold); color: var(--gold); }
-  .heroes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
-  .hero { border-radius: 14px; padding: 12px 10px; text-align: left; background: #1b2442; border: 2px solid var(--hc);
-    display: flex; flex-direction: column; gap: 4px; transition: transform .15s; color: var(--text); }
-  .hero:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 6px 24px color-mix(in srgb, var(--hc) 40%, transparent); }
-  .hero:disabled { opacity: .3; }
-  .hero .hi { font-size: 40px; line-height: 1; text-align: center; filter: drop-shadow(0 0 10px var(--hc)); }
-  .hero .hn { font-weight: 900; font-size: 18px; color: var(--hc); text-align: center; }
-  .hero .ht { font-size: 12px; color: var(--muted); text-align: center; margin-top: -4px; }
-  .hero .hp { font-size: 12px; } .hero .hs { font-size: 12px; color: #f2d06e; }
-  .lobby { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; margin-top: 10px; }
-  .lobby .qr { background: #fff; padding: 8px; border-radius: 10px; width: 176px; height: 176px; }
-  .lobby .qr svg { width: 100%; height: 100%; display: block; }
-  .lobby .url { font: 700 15px ui-monospace, monospace; color: var(--gold); word-break: break-all; }
-  .seat { padding: 6px 10px; border-radius: 8px; background: #1b2442; margin: 6px 0; color: var(--pc); }
-  .seat.on { box-shadow: inset 4px 0 0 var(--pc); } .seat.off { opacity: .35; }
-  .seat span { color: var(--text); }
+  .box { max-width: 720px; width: 100%; max-height: 100%; overflow: auto; padding: 18px 24px; box-shadow: 0 30px 90px #000; }
+  .box.wide { max-width: 980px; }
+  .box h2 { margin: 2px 0 8px; font: 700 26px/1.15 var(--display); letter-spacing: .08em; color: var(--gold-hi); text-align: center; }
+  .box p { color: #d5ccb7; margin: 8px 0; } .box ul { padding-left: 20px; color: #d5ccb7; } .box li { margin: 6px 0; }
+  .box li::marker { content: '◆  '; color: var(--gold); font-size: 10px; }
+  .box b { color: var(--gold-hi); font-weight: 600; }
+  .box .btns { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 18px; padding: 4px; }
+  .box .btns .btn { flex: 1; min-width: 180px; padding: 15px 18px; }
+  .center { text-align: center; }
+  details summary { cursor: pointer; text-align: center; font: 700 12px/1 var(--display); letter-spacing: .28em; text-transform: uppercase; color: var(--gold); padding: 8px; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  .logo { text-align: center; margin: 4px 0 6px; }
+  .logo svg { width: 92px; height: 92px; filter: drop-shadow(0 0 18px rgba(244,221,162,.25)); }
+  .title { margin: 0; text-align: center; font: 700 44px/1 var(--deco); letter-spacing: .06em;
+    background: linear-gradient(180deg, #fff3c9 0%, #e9c77c 45%, #a8803e 60%, #e8c97f 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 2px 0 #2a1c08) drop-shadow(0 0 22px rgba(244,221,162,.18)); }
+  .tagline { text-align: center; font: italic 16px var(--body); color: var(--muted); margin: 8px 0 2px; }
+  .version { text-align: center; font: 600 10px var(--display); letter-spacing: .3em; color: var(--faint); }
+  .count { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 14px 0 4px; font: 700 12px var(--display); letter-spacing: .25em; text-transform: uppercase; color: var(--muted); }
+  .count button { width: 44px; height: 44px; border: 0; transform: rotate(45deg); font: 700 17px var(--display); color: var(--muted);
+    background: linear-gradient(135deg, #2a2534, #121019); box-shadow: inset 0 0 0 1px var(--gold-lo), 0 0 0 3px var(--ink), 0 0 0 4px var(--gold-deep); }
+  .count button span { display: inline-block; transform: rotate(-45deg); }
+  .count button.on { color: #2b1d08; background: linear-gradient(135deg, #fbe9b6, #c9a056); box-shadow: inset 0 0 0 1px #3b2a12, 0 0 0 3px var(--ink), 0 0 0 4px var(--gold), 0 0 18px rgba(244,221,162,.35); }
 
-  #pip { position: absolute; right: 12px; top: 76px; bottom: 12px; width: var(--pipw); display: none; flex-direction: column; gap: 6px; z-index: 5; }
+  /* ---- hero cards ---- */
+  .heroes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; }
+  .hero { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 12px 14px; border: 0; border-radius: 8px; text-align: center; color: var(--text);
+    background: radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--hc) 22%, #2a2434), #110f16 70%);
+    box-shadow: inset 0 0 0 1px var(--gold-lo), inset 0 0 0 5px #110f16, inset 0 0 0 6px rgba(210,174,107,.3), 0 10px 24px #000b; transition: transform .15s, box-shadow .15s; }
+  .hero:not(:disabled):hover { transform: translateY(-5px); box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 0 5px #110f16, inset 0 0 0 6px var(--gold-lo), 0 0 30px color-mix(in srgb, var(--hc) 35%, transparent), 0 12px 24px #000b; }
+  .hero:disabled { filter: grayscale(1) brightness(.45); }
+  .hero .medal { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; font-size: 38px;
+    background: radial-gradient(circle at 40% 35%, #3b3348, #100d15); box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px #100d15, 0 0 0 6px var(--gold-lo), 0 0 26px color-mix(in srgb, var(--hc) 45%, transparent); }
+  .hero .hn { font: 700 20px/1 var(--display); letter-spacing: .1em; color: var(--gold-hi); margin-top: 6px; }
+  .hero .ht { font: 600 10px/1 var(--display); letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
+  .hero .hp, .hero .hs { font: 13px/1.3 var(--body); color: #d5ccb7; }
+  .hero .hs { color: var(--gold-hi); }
+  .hero .lab { display: block; font: 700 9px/1 var(--display); letter-spacing: .25em; text-transform: uppercase; color: var(--gold); margin: 6px 0 3px; }
+  .perks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+  .perkrow { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 6px; background: #15121c; box-shadow: inset 0 0 0 1px rgba(210,174,107,.25); }
+  .perkrow .who { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; font: 700 12px var(--display); letter-spacing: .08em; }
+  .perkrow .who .art { font-size: 26px; }
+  .perkrow .boon { font: 13px/1.3 var(--body); color: #d5ccb7; } .perkrow .boon b { font-family: var(--display); font-size: 12px; letter-spacing: .06em; }
+
+  /* ---- lobby ---- */
+  .lobby { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; margin-top: 10px; }
+  .lobby .qr { background: #f3ead6; padding: 10px; width: 190px; height: 190px; box-shadow: 0 0 0 2px var(--gold), 0 0 0 6px var(--ink), 0 0 0 7px var(--gold-lo); }
+  .lobby .qr svg { width: 100%; height: 100%; display: block; }
+  .lobby .url { font: 700 16px/1.3 ui-monospace, monospace; color: var(--gold-hi); word-break: break-all; }
+  .lobby .alt-url { font: 12px/1.4 ui-monospace, monospace; color: var(--faint); }
+  .seat { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 7px 0; border-radius: 4px; background: #15121c;
+    box-shadow: inset 0 0 0 1px rgba(210,174,107,.18); font: 700 13px var(--display); letter-spacing: .08em; }
+  .seat span { font: 14px var(--body); letter-spacing: 0; color: #d5ccb7; }
+  .seat.on { box-shadow: inset 0 0 0 1px var(--gold-lo), inset 3px 0 0 var(--pc); }
+  .seat.off { opacity: .45; }
+
+  /* ---- picture-in-picture phone mirror ---- */
+  #pip { position: absolute; right: 12px; top: 82px; bottom: 12px; width: var(--pipw); display: none; flex-direction: column; gap: 8px; z-index: 5; }
   body.remote.pipon #pip { display: flex; }
-  #pip .lbl { font-weight: 800; text-align: center; color: var(--pc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #pip .frame { flex: 1; border-radius: 30px; border: 5px solid var(--pc); background: #0b1020; overflow: hidden; position: relative;
-    box-shadow: 0 0 34px color-mix(in srgb, var(--pc) 45%, transparent); transition: border-color .3s, box-shadow .3s; }
+  #pip .lbl { display: flex; gap: 8px; align-items: center; justify-content: center; font: 700 12px/1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: var(--gold-hi); }
+  #pip .frame { flex: 1; position: relative; overflow: hidden; border-radius: 34px; background: var(--ink);
+    box-shadow: 0 0 0 2px var(--gold), 0 0 0 7px #0d0b12, 0 0 0 8px var(--gold-lo), 0 0 30px color-mix(in srgb, var(--pc) 35%, transparent), 0 20px 40px #000; }
   #pip iframe { position: absolute; left: 0; top: 0; width: 390px; border: 0; transform-origin: 0 0; pointer-events: none; }
 
-  #banner { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 32px; font-weight: 900;
-    text-shadow: 0 2px 16px #000, 0 0 30px currentColor; pointer-events: none; opacity: 0; transition: opacity .25s; white-space: nowrap; z-index: 6; }
-  .float { position: absolute; transform: translate(-50%, -50%); font-weight: 900; font-size: 22px; pointer-events: none;
-    text-shadow: 0 2px 8px #000; white-space: nowrap; z-index: 4; }
-  #tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-    padding: 4px 8px; font-size: 12px; display: none; z-index: 7; max-width: 280px; }
+  /* ---- banners, floating text, tooltip ---- */
+  #banner { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(.96); z-index: 6; pointer-events: none; opacity: 0;
+    transition: opacity .25s, transform .25s; white-space: nowrap; text-align: center; }
+  #banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #banner .t { font: 700 40px/1.1 var(--deco); letter-spacing: .04em;
+    background: linear-gradient(180deg, #fff3c9, #e2bd72 55%, #a37a38); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 3px 0 #1a1206) drop-shadow(0 0 26px rgba(0,0,0,.9)); }
+  #banner .u { height: 2px; margin: 8px auto 0; width: 70%; background: linear-gradient(90deg, transparent, var(--bc, var(--gold)), transparent); box-shadow: 0 0 12px var(--bc, var(--gold)); }
+  .float { position: absolute; transform: translate(-50%, -50%); pointer-events: none; z-index: 4; white-space: nowrap;
+    font: 700 20px/1 var(--display); letter-spacing: .06em; text-shadow: 0 2px 0 #000, 0 0 14px #000; }
+  #tip { position: absolute; z-index: 7; display: none; pointer-events: none; max-width: 300px; padding: 7px 11px; border-radius: 3px;
+    font: 13px/1.35 var(--body); color: var(--text); background: rgba(14,12,19,.96); box-shadow: inset 0 0 0 1px var(--gold-lo), 0 6px 18px #000a; }
 
   @media (max-width: 900px) { :root { --pipw: 210px; } .heroes { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 640px) {
-    #top { grid-template-columns: 1fr 104px 1fr; padding: 4px 6px; gap: 4px; }
-    .side { flex-direction: column; gap: 2px; } .side.right { flex-direction: column; }
-    .pinfo { padding: 0 6px; border-width: 1px; } .pinfo .st { display: none; } .pinfo .nm { font-size: 12px; }
-    #timer { font-size: 16px; }
-    #controls { gap: 6px; } #controls button { padding: 10px 8px; min-width: 0; flex: 1; font-size: 14px; }
-    .hcard { flex-basis: 92px; padding: 4px; } .hcard .ic { font-size: 20px; } .hcard small { font-size: 9.5px; }
-    #tokens { min-width: 34px; font-size: 13px; }
-    #msg { border-radius: 12px; font-size: 12.5px; padding: 5px 10px; top: 68px; }
-    .box h1 { font-size: 28px; } .heroes { grid-template-columns: 1fr; } .hero .hi { font-size: 30px; }
-    .lobby { grid-template-columns: 1fr; }
+    #top { grid-template-columns: 1fr 96px 1fr; padding: 5px 6px; gap: 5px; height: 70px; }
+    .side { flex-direction: column; gap: 3px; } .side.right { flex-direction: column; }
+    .pinfo { padding: 3px 8px; } .pinfo .st { display: none; } .pinfo .nm { font-size: 11px; }
+    #timer { font-size: 17px; }
+    #controls { gap: 8px; } #controls .btn { padding: 12px 8px; min-width: 0; flex: 1; font-size: 12px; letter-spacing: .08em; }
+    #tokens { min-width: 46px; } #tokens .num { font-size: 18px; }
+    .tcg { flex-basis: 96px; height: 126px; }
+    #msg { font-size: 13px; padding: 6px 18px; top: 78px; }
+    .title { font-size: 30px; } .heroes { grid-template-columns: 1fr; } .lobby { grid-template-columns: 1fr; }
   }
 </style>
 <script type="importmap">{ "imports": {
@@ -145,15 +232,15 @@
 <div id="msg">Welcome to Estate Assassins</div>
 <div id="peek"></div>
 <button id="help" class="round" title="Rules">?</button>
-<button id="mute" class="round" title="Sound on/off">🔊</button>
+<button id="mute" class="round" title="Sound on/off"></button>
 <div id="bottom">
   <div id="controls">
-    <button id="bLower">▼ Lower</button>
+    <button id="bLower" class="btn dark">▼ Lower</button>
     <div id="tokens"></div>
-    <button id="bHigher">▲ Higher</button>
-    <button id="bCash">Claim</button>
-    <button id="bSuper">Super</button>
-    <button id="bCancel">Cancel</button>
+    <button id="bHigher" class="btn dark">▲ Higher</button>
+    <button id="bCash" class="btn">Claim</button>
+    <button id="bSuper" class="btn dark">Super</button>
+    <button id="bCancel" class="btn dark">Cancel</button>
   </div>
   <div id="hand"></div>
 </div>
@@ -172,12 +259,12 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.0.0';
-const N = 6, SP = 1.12, HAND_MAX = 5, ROUND_SECONDS = 600, MAX_PLAYERS = 4;
+const VERSION = '1.1.0';
+const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
-const PCSS = ['#3fa9ff', '#ff5a4f', '#45d483', '#ffc23d'];
+const PCSS = ['#4f8dff', '#e24a5a', '#35c47f', '#f0b13c'];
 const PCOL = PCSS.map((c) => new THREE.Color(c));
-const COLOR_NAMES = ['Blue', 'Red', 'Green', 'Gold'];
+const COLOR_NAMES = ['Sapphire', 'Ruby', 'Emerald', 'Topaz'];
 // HQ corners per seat: bottom-left, top-right, top-left, bottom-right (opposite seats first).
 const HQ_POS = [[5, 0], [0, 5], [0, 0], [5, 5]];
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -202,7 +289,23 @@ const CHARACTERS = {
     superText: 'Burn away every obstacle next to your territory; they become neutral land.', shout: 'Awaken, dragon!' },
 };
 const CHAR_IDS = Object.keys(CHARACTERS);
-const handMax = (p) => p.char === 'duelist' ? HAND_MAX + 1 : HAND_MAX;
+// Boons: every game each hero gets 2 random minor perks on top of their signature power.
+const PERKS = {
+  lucky:      { name: 'Lucky Start', icon: '🍀', text: 'Your first coin flip of the game is guaranteed heads.' },
+  pockets:    { name: 'Deep Pockets', icon: '👝', text: 'Hold one extra action card.' },
+  sharp:      { name: 'Card Sharp', icon: '🎴', text: 'Start with one extra action card.' },
+  path:       { name: 'Pathfinder', icon: '🧭', text: 'Start with a free tile next to your HQ.' },
+  bulwark:    { name: 'Bulwark', icon: '🏯', text: 'Your HQ needs 3× heads to fall instead of 2.' },
+  wind:       { name: 'Second Wind', icon: '💨', text: 'Once per game, your first wrong guess is forgiven.' },
+  prospector: { name: 'Prospector', icon: '⛏️', text: 'Capturing a Beacon gives +1 claim.' },
+  looter:     { name: 'Looter', icon: '💼', text: 'Stealing a rival tile draws an action card (once per turn).' },
+  charm:      { name: 'Lucky Charm', icon: '🧿', text: 'A failed coin flip has a 25% chance to be flipped again.' },
+  momentum:   { name: 'Momentum', icon: '📈', text: 'Your 4th correct guess in a turn gives +1 extra claim.' },
+};
+const PERK_IDS = Object.keys(PERKS);
+const hasPerk = (p, k) => p.perks.includes(k);
+const handMax = (p) => HAND_MAX + (p.char === 'duelist' ? 1 : 0) + (hasPerk(p, 'pockets') ? 1 : 0);
+const clock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 
 // 30 action cards in the double deck (Yu-Gi-Oh/Magic style: drawn into your hand, played on your turn).
 const ACTIONS = {
@@ -535,7 +638,20 @@ function canvasTex(key, w, h, draw) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   draw(cv.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.userData.redraw = () => { const g = cv.getContext('2d'); g.reset?.(); g.clearRect(0, 0, w, h); draw(g, w, h); t.needsUpdate = true; };
   texCache.set(key, t); return t;
+}
+document.fonts?.load('700 40px Cinzel').then(() => document.fonts.ready).then(() => texCache.forEach((t) => t.userData.redraw())).catch(() => {});
+const GOLD_FILTER = 'grayscale(1) sepia(1) saturate(2.6) hue-rotate(-10deg) brightness(1.1)';
+const DISPLAY = 'Cinzel, Georgia, serif', BODY = 'Spectral, Georgia, serif';
+function goldGrad(g, y0, y1) { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, '#fff1c4'); gr.addColorStop(.5, '#d9b46a'); gr.addColorStop(1, '#8b6a37'); return gr; }
+function drawFrame(g, w, h, r, inset = 10) {
+  g.strokeStyle = '#c9a45c'; g.lineWidth = 3; g.beginPath(); g.roundRect(inset, inset, w - inset * 2, h - inset * 2, r); g.stroke();
+  g.strokeStyle = 'rgba(201,164,92,.45)'; g.lineWidth = 1.2; g.beginPath(); g.roundRect(inset + 6, inset + 6, w - inset * 2 - 12, h - inset * 2 - 12, r * .6); g.stroke();
+  g.fillStyle = '#f0d48f';
+  for (const [x, y] of [[inset + 3, inset + 3], [w - inset - 3, inset + 3], [inset + 3, h - inset - 3], [w - inset - 3, h - inset - 3]]) {
+    g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 7, y); g.lineTo(x, y + 7); g.lineTo(x - 7, y); g.closePath(); g.fill();
+  }
 }
 function wrap(g, text, x, y, maxW, lh) {
   let line = '';
@@ -548,43 +664,51 @@ function wrap(g, text, x, y, maxW, lh) {
 const CW = 256, CH = 358;
 function faceTex(card) {
   if (card.kind === 'play') return canvasTex('p' + card.rank + card.suit, CW, CH, (g, w, h) => {
-    const red = card.suit === 1 || card.suit === 2, col = red ? '#c8202f' : '#15161c';
-    g.fillStyle = '#fbf8f0'; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 22); g.fill();
-    g.strokeStyle = '#d8d0bc'; g.lineWidth = 3; g.stroke();
+    const red = card.suit === 1 || card.suit === 2, col = red ? '#8e1c2e' : '#1a1610';
+    const bg = g.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, h * .7); bg.addColorStop(0, '#f8efd9'); bg.addColorStop(1, '#e2d2ad');
+    g.fillStyle = bg; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 20); g.fill();
+    drawFrame(g, w, h, 14, 10);
     g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = 'bold 52px Georgia, serif'; g.fillText(rankLabel(card.rank), 40, 46);
-    g.font = '40px serif'; g.fillText(SUITS[card.suit], 40, 94);
-    g.save(); g.translate(w - 40, h - 46); g.rotate(Math.PI);
-    g.font = 'bold 52px Georgia, serif'; g.fillText(rankLabel(card.rank), 0, 0);
-    g.font = '40px serif'; g.fillText(SUITS[card.suit], 0, -48); g.restore();
-    g.font = '150px serif'; g.fillText(SUITS[card.suit], w / 2, h / 2 + 6);
+    g.font = `700 46px ${DISPLAY}`; g.fillText(rankLabel(card.rank), 44, 50);
+    g.font = '34px serif'; g.fillText(SUITS[card.suit], 44, 92);
+    g.save(); g.translate(w - 44, h - 50); g.rotate(Math.PI);
+    g.font = `700 46px ${DISPLAY}`; g.fillText(rankLabel(card.rank), 0, 0); g.font = '34px serif'; g.fillText(SUITS[card.suit], 0, -42); g.restore();
+    g.strokeStyle = 'rgba(139,106,55,.5)'; g.lineWidth = 2; g.beginPath(); g.arc(w / 2, h / 2, 62, 0, Math.PI * 2); g.stroke();
+    g.font = '120px serif'; g.fillText(SUITS[card.suit], w / 2, h / 2 + 6);
   });
   const A = ACTIONS[card.id];
   return canvasTex('a' + card.id, CW, CH, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#3a1f6e'); gr.addColorStop(1, '#120a2a');
-    g.fillStyle = gr; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 22); g.fill();
-    g.strokeStyle = '#e8c25a'; g.lineWidth = 7; g.stroke();
+    const bg = g.createRadialGradient(w / 2, 110, 10, w / 2, 110, 260); bg.addColorStop(0, '#2f283b'); bg.addColorStop(1, '#0f0d14');
+    g.fillStyle = bg; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 20); g.fill();
+    drawFrame(g, w, h, 14, 10);
+    g.fillStyle = '#120f18'; g.strokeStyle = '#d2ae6b'; g.lineWidth = 3; g.beginPath(); g.arc(w / 2, 104, 56, 0, Math.PI * 2); g.fill(); g.stroke();
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.font = '96px serif'; g.fillText(A.icon, w / 2, 106);
-    g.fillStyle = '#f2d06e'; g.font = 'bold 25px system-ui, sans-serif'; wrap(g, A.name, w / 2, 196, w - 30, 28);
-    g.fillStyle = '#ddd6f5'; g.font = '18px system-ui, sans-serif'; wrap(g, A.text, w / 2, 250, w - 36, 23);
+    g.save(); g.filter = GOLD_FILTER; g.font = '62px serif'; g.fillText(A.icon, w / 2, 108); g.restore();
+    g.fillStyle = goldGrad(g, 176, 210); g.font = `700 21px ${DISPLAY}`; wrap(g, A.name.toUpperCase(), w / 2, 192, w - 36, 24);
+    g.fillStyle = '#d5ccb7'; g.font = `17px ${BODY}`; wrap(g, A.text, w / 2, 252, w - 44, 21);
   });
 }
 const backTex = () => canvasTex('back', CW, CH, (g, w, h) => {
-  g.fillStyle = '#142a5c'; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 22); g.fill();
-  g.save(); g.clip(); g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 10;
-  for (let i = -h; i < w + h; i += 26) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); g.beginPath(); g.moveTo(i, h); g.lineTo(i + h, 0); g.stroke(); }
-  g.restore(); g.strokeStyle = '#e8c25a'; g.lineWidth = 6; g.beginPath(); g.roundRect(18, 18, w - 36, h - 36, 14); g.stroke();
-  g.fillStyle = '#e8c25a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = 'bold 64px Georgia, serif'; g.fillText('EA', w / 2, h / 2);
+  const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#2a0f17'); bg.addColorStop(1, '#120609');
+  g.fillStyle = bg; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 20); g.fill();
+  g.save(); g.beginPath(); g.roundRect(18, 18, w - 36, h - 36, 12); g.clip(); g.strokeStyle = 'rgba(210,174,107,.12)'; g.lineWidth = 2;
+  for (let i = -h; i < w + h; i += 18) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); g.beginPath(); g.moveTo(i, h); g.lineTo(i + h, 0); g.stroke(); }
+  g.restore(); drawFrame(g, w, h, 14, 10);
+  g.save(); g.translate(w / 2, h / 2); g.fillStyle = goldGrad(g, -60, 60); g.strokeStyle = '#1a0c06'; g.lineWidth = 1.5;
+  for (const a of [.66, -.66]) { g.save(); g.rotate(a); g.beginPath(); g.moveTo(-3, -62); g.lineTo(3, -62); g.lineTo(4, 22); g.lineTo(0, 32); g.lineTo(-4, 22); g.closePath(); g.fill(); g.stroke(); g.fillRect(-14, 22, 28, 5); g.fillRect(-3, 27, 6, 18); g.restore(); }
+  g.fillStyle = '#16090c'; g.strokeStyle = '#d9b46a'; g.lineWidth = 3; g.beginPath(); g.moveTo(-26, 4); g.lineTo(0, -20); g.lineTo(26, 4); g.lineTo(26, 32); g.lineTo(-26, 32); g.closePath(); g.fill(); g.stroke();
+  g.restore();
+  g.fillStyle = goldGrad(g, 290, 320); g.textAlign = 'center'; g.font = `700 20px ${DISPLAY}`; g.fillText('ESTATE', w / 2, 296); g.fillText('ASSASSINS', w / 2, 320);
 });
 const coinTex = (heads) => canvasTex(heads ? 'heads' : 'tails', 256, 256, (g, w) => {
-  const gr = g.createRadialGradient(w / 2, w / 2, 20, w / 2, w / 2, w / 2);
-  gr.addColorStop(0, heads ? '#ffe9a0' : '#e0e6f0'); gr.addColorStop(1, heads ? '#b88a1e' : '#7d8597');
+  const gr = g.createRadialGradient(w * .4, w * .35, 10, w / 2, w / 2, w / 2);
+  gr.addColorStop(0, heads ? '#fff1c4' : '#f1f0ea'); gr.addColorStop(.7, heads ? '#c99b48' : '#9a9a9e'); gr.addColorStop(1, heads ? '#6e5024' : '#55565c');
   g.fillStyle = gr; g.fillRect(0, 0, w, w);
-  g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 10; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 18, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = 'rgba(40,25,0,.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '90px serif'; g.fillText(heads ? '♛' : '✦', w / 2, w / 2 - 16);
-  g.font = 'bold 40px system-ui, sans-serif'; g.fillText(heads ? 'HEADS' : 'TAILS', w / 2, w / 2 + 70);
+  g.strokeStyle = 'rgba(40,25,5,.55)'; g.lineWidth = 6; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 16, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 2; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 26, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = 'rgba(40,25,5,.85)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '86px serif'; g.fillText(heads ? '♛' : '⚔', w / 2, w / 2 - 14);
+  g.font = `700 30px ${DISPLAY}`; g.fillText(heads ? 'HEADS' : 'TAILS', w / 2, w / 2 + 66);
 });
 
 // ---------- cards in 3D ----------
@@ -633,7 +757,7 @@ async function flipCoin(pos, heads) {
   SFX.play('coin_toss'); setTimeout(() => SFX.play('coin_spin'), 120 / SPEED);
   await tween(1.05, (k) => { coin.position.y = pos.y + Math.sin(k * Math.PI) * 2.6; coin.rotation.x = k * (spins * Math.PI * 2 + finalX); }, (k) => k);
   SFX.play('coin_land'); SFX.play(heads ? 'heads' : 'tails');
-  floatText(heads ? 'HEADS' : 'TAILS', pos.clone().add(new THREE.Vector3(0, .6, 0)), heads ? '#f2d06e' : '#b8c0d8');
+  floatText(heads ? 'HEADS' : 'TAILS', pos.clone().add(new THREE.Vector3(0, .6, 0)), heads ? '#f4dda2' : '#c9c4b8');
   await sleep(550);
   coin.visible = false;
   return heads;
@@ -872,7 +996,7 @@ const passable = (t) => t.kind !== 'obstacle';
 // Tiles on the far side of an obstacle that borders your territory.
 const acrossObstacle = (pi, t) => neighbors(t).some((o) => o.kind === 'obstacle' && neighbors(o).some((n) => n.owner === pi));
 const beaconCount = (pi) => S.tiles.filter((t) => t.kind === 'beacon' && t.owner === pi).length;
-const beaconsNeeded = () => (S.players.length === 2 ? 3 : 2);
+const beaconsNeeded = () => 2;
 const canAttackHQ = (pi) => beaconCount(pi) >= beaconsNeeded();
 function claimTargets(pi) {
   const dragon = S.players[pi].char === 'dragon';
@@ -893,12 +1017,15 @@ const heroSpritePos = (pi) => { const [r, c] = HQ_POS[slotOf(pi)]; return new TH
 function heroTex(char, owner) {
   const C = CHARACTERS[char];
   return canvasTex('hero' + char + slotOf(owner), 256, 300, (g, w) => {
-    const gr = g.createRadialGradient(w / 2, 120, 10, w / 2, 120, 118);
-    gr.addColorStop(0, C.color); gr.addColorStop(.7, '#141a33'); gr.addColorStop(1, 'rgba(20,26,51,0)');
-    g.fillStyle = gr; g.beginPath(); g.arc(w / 2, 120, 118, 0, Math.PI * 2); g.fill();
-    g.lineWidth = 8; g.strokeStyle = pcss(owner); g.beginPath(); g.arc(w / 2, 120, 92, 0, Math.PI * 2); g.stroke();
-    g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '100px serif'; g.fillText(C.icon, w / 2, 124);
-    g.font = 'bold 34px system-ui, sans-serif'; g.fillStyle = '#fff'; g.shadowColor = '#000'; g.shadowBlur = 8; g.fillText(C.name, w / 2, 268);
+    const glow = g.createRadialGradient(w / 2, 120, 40, w / 2, 120, 128); glow.addColorStop(0, C.color + '66'); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = glow; g.fillRect(0, 0, w, 260);
+    const disc = g.createRadialGradient(w / 2 - 20, 100, 10, w / 2, 120, 92); disc.addColorStop(0, '#3b3348'); disc.addColorStop(1, '#0f0d14');
+    g.fillStyle = disc; g.beginPath(); g.arc(w / 2, 120, 90, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 7; g.strokeStyle = goldGrad(g, 30, 210); g.stroke();
+    g.lineWidth = 4; g.strokeStyle = pcss(owner); g.beginPath(); g.arc(w / 2, 120, 100, 0, Math.PI * 2); g.stroke();
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.save(); g.filter = GOLD_FILTER; g.font = '92px serif'; g.fillText(C.icon, w / 2, 126); g.restore();
+    g.fillStyle = goldGrad(g, 252, 284); g.font = `700 34px ${DISPLAY}`; g.shadowColor = '#000'; g.shadowBlur = 10; g.fillText(C.name.toUpperCase(), w / 2, 268);
   });
 }
 const burstRing = new THREE.Mesh(new THREE.RingGeometry(.5, .62, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -994,13 +1121,19 @@ async function startGame(mode, n, picks = []) {
   const chars = resolveChars(mode === 'remote' ? slots.map((k) => remoteChars[k]) : picks, n);
   const humanSeat = (i) => mode === 'pvp' ? true : mode === 'ai' ? i === 0 && !AUTOPLAY : remoteSeats[slots[i]].taken;
   const players = chars.map((char, i) => ({ i, slot: slots[i], char, alive: true, ai: !humanSeat(i), hand: [], superUsed: false, ki: false,
-    lucky: 0, sabotaged: 0, reroll: 0, double: false, equal: false, second: 0,
+    perks: shuffle([...PERK_IDS]).slice(0, 2), lucky: 0, sabotaged: 0, reroll: 0, double: false, equal: false, second: 0, wind: 0,
     name: CHARACTERS[char].name + (!humanSeat(i) ? ' (AI)' : '') }));
-  S = { mode, n, cur: 0, turn: 0, turnId: 0, tokens: 0, claims: 0, phase: 'busy', timeLeft: ROUND_SECONDS, started: false, over: false,
+  S = { mode, n, cur: 0, turn: 0, turnId: 0, tokens: 0, claims: 0, phase: 'busy', elapsed: 0, started: false, over: false,
     chars, players, playerBySlot: Object.fromEntries(slots.map((k, i) => [k, i])), tiles: [], deck: [], discard: [], current: null, peek: null, peek2: null, pending: null, targets: [], streak: 0 };
   if (curMesh) { pile.remove(curMesh); curMesh = null; }
   buildBoard(); buildDeck(); placeHeroes(); buildHud();
-  for (const p of S.players) for (let k = p.char === 'duelist' ? 2 : 1; k > 0; k--) { const i = S.deck.findIndex((c) => c.kind === 'action'); p.hand.push(S.deck.splice(i, 1)[0]); }
+  for (const p of S.players) {
+    for (let k = 1 + (p.char === 'duelist' ? 1 : 0) + (hasPerk(p, 'sharp') ? 1 : 0); k > 0; k--) { const i = S.deck.findIndex((c) => c.kind === 'action'); p.hand.push(S.deck.splice(i, 1)[0]); }
+    if (hasPerk(p, 'lucky')) p.lucky = 1;
+    if (hasPerk(p, 'wind')) p.wind = 1;
+    if (hasPerk(p, 'path')) { const hq = S.tiles.find((t) => t.kind === 'hq' && t.owner === p.i); const t = pick(neighbors(hq).filter((x) => x.kind === 'land' && x.owner < 0)); if (t) { t.owner = p.i; paintTile(t); } }
+  }
+  await perkReveal();
   updateUI();
   S.current = await drawPlaying(null); await revealCard(S.current);
   say('Heads or tails: who starts?');
@@ -1028,7 +1161,7 @@ function endTurn() {
   if (S.over) return;
   const p = S.players[S.cur];
   p.double = false; p.equal = false; p.second = 0;
-  S.tokens = 0; S.claims = 0; S.peek = null; S.peek2 = null; S.streak = 0; S.pending = null; setTargets([]);
+  S.tokens = 0; S.claims = 0; S.peek = null; S.peek2 = null; S.streak = 0; S.looted = false; S.pending = null; setTargets([]);
   for (const t of S.tiles) if (t.shield > 0 && t.owner !== S.cur) { t.shield--; paintTile(t); }
   S.cur = nextAlive(S.cur); S.turn++; S.turnId++;
   beginTurn();
@@ -1047,17 +1180,18 @@ async function guess(dir) {
   if (right) {
     S.streak++;
     const powerUp = p.char === 'warrior' && S.streak >= 3;
-    const gain = (p.double ? 2 : 1) + (powerUp ? 1 : 0); p.double = false; S.tokens += gain;
-    floatText(`${powerUp ? '🔥 Power-up! ' : tie ? '👁️ Equal = correct! ' : 'Correct! '}+${gain} claim${gain > 1 ? 's' : ''}`, where, powerUp ? '#ffb02e' : '#7dffa8');
+    const gain = (p.double ? 2 : 1) + (powerUp ? 1 : 0) + (hasPerk(p, 'momentum') && S.streak === 4 ? 1 : 0); p.double = false; S.tokens += gain;
+    floatText(`${powerUp ? '🔥 Power-up! ' : tie ? '👁️ Equal = correct! ' : 'Correct! '}+${gain} claim${gain > 1 ? 's' : ''}`, where, powerUp ? '#ffe1a0' : '#f4dda2');
     SFX.play(powerUp ? 'powerup' : 'correct', S.streak);
     say(`${cardLabel(next)}: correct. ${p.name} has ${S.tokens} claim${S.tokens > 1 ? 's' : ''}.`);
     S.phase = 'guess'; updateUI(); return;
   }
-  if (p.second > 0) {
-    p.second--; SFX.play('save'); floatText('Second chance!', where, '#9cf59c'); say(`${cardLabel(next)}: wrong, but the second chance saves ${p.name}.`);
+  if (p.second > 0 || p.wind > 0) {
+    if (p.second > 0) p.second--; else p.wind--;
+    SFX.play('save'); floatText('Second chance!', where, '#f4dda2'); say(`${cardLabel(next)}: wrong, but the second chance saves ${p.name}.`);
     S.phase = 'guess'; updateUI(); return;
   }
-  floatText(tie ? 'Equal = wrong' : 'Wrong!', where, '#ff7a70'); SFX.play('wrong');
+  floatText(tie ? 'Equal = wrong' : 'Wrong!', where, '#d8445c'); SFX.play('wrong');
   say(`${cardLabel(next)}: wrong${S.tokens ? `, ${S.tokens} claim${S.tokens > 1 ? 's' : ''} lost` : ''}.`);
   S.tokens = 0; updateUI();
   await sleep(1000); if (dead(id)) return;
@@ -1076,12 +1210,12 @@ const tileName = (t) => t.kind === 'hq' ? `${S.players[t.owner]?.name ?? 'an'} H
 async function attemptClaim(t) {
   const p = S.players[S.cur], id = S.turnId;
   S.phase = 'busy'; setTargets([]); updateUI();
-  const need = t.kind === 'hq' || t.fort ? 2 : 1; let ok = true;
+  const need = t.kind === 'hq' ? (hasPerk(S.players[t.owner], 'bulwark') ? 3 : 2) : t.fort ? 2 : 1; let ok = true;
   say(`${p.name} attacks ${tileName(t)}${need > 1 ? ' (2× heads needed!)' : ''}…`);
   if (t.trap >= 0 && t.trap === t.owner) {
     t.trap = -1; ok = false; SFX.play('trap');
     await tween(.5, (k) => { t.content.position.y = TOP + Math.sin(k * Math.PI * 6) * .05 * (1 - k); });
-    floatText('🕸️ Ambush!', t.pos.clone().add(new THREE.Vector3(0, .9, 0)), '#ff7a70'); say('🕸️ Ambush! The attack fails.');
+    floatText('🕸️ Ambush!', t.pos.clone().add(new THREE.Vector3(0, .9, 0)), '#d8445c'); say('🕸️ Ambush! The attack fails.');
   }
   for (let i = 0; i < need && ok; i++) {
     let heads = Math.random() < .5;
@@ -1091,14 +1225,24 @@ async function attemptClaim(t) {
     updateUI();
     ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), heads);
     if (dead(id)) return;
-    if (!ok && p.reroll > 0) { p.reroll--; say('🎲 Reroll!'); SFX.play('save'); ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), Math.random() < .5); if (dead(id)) return; }
+    if (!ok && (p.reroll > 0 || (hasPerk(p, 'charm') && Math.random() < .25))) {
+      if (p.reroll > 0) { p.reroll--; say('🎲 Reroll!'); } else say('🧿 Lucky Charm: flip again!');
+      SFX.play('save'); ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), Math.random() < .5); if (dead(id)) return;
+    }
   }
   S.claims--;
   if (ok) {
     const victim = t.owner, wasHQ = t.kind === 'hq';
     await setOwner(t, S.cur); if (dead(id)) return;
     if (wasHQ) { await eliminate(victim, S.cur, t); if (dead(id)) return; }
-    else { SFX.play(victim >= 0 ? 'steal' : 'claim'); say(`${p.name} ${victim >= 0 ? 'steals' : 'claims'} ${tileName(t)}!`); }
+    else {
+      SFX.play(victim >= 0 ? 'steal' : 'claim'); say(`${p.name} ${victim >= 0 ? 'steals' : 'claims'} ${tileName(t)}!`);
+      if (t.kind === 'beacon' && hasPerk(p, 'prospector')) { S.claims++; floatText('⛏️ +1 claim', t.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), '#f4dda2'); }
+      if (victim >= 0 && hasPerk(p, 'looter') && !S.looted && p.hand.length < handMax(p)) {
+        const i = S.deck.findLastIndex((c) => c.kind === 'action');
+        if (i >= 0) { S.looted = true; const [card] = S.deck.splice(i, 1); await showActionDraw(card, p.i); if (dead(id)) return; p.hand.push(card); updateUI(); }
+      }
+    }
   } else { if (!/Ambush/.test($('msg').textContent)) say('Claim failed.'); SFX.play('fail'); }
   await sleep(300); if (dead(id)) return;
   const ts = claimTargets(S.cur);
@@ -1160,7 +1304,7 @@ async function playCard(pi, idx, target) {
   }
   p.hand.splice(idx, 1); S.discard.push(card); S.phase = 'busy'; updateUI();
   SFX.play('cast');
-  await banner(`${A.icon} ${A.name}`, '#f2d06e', 700);
+  await banner(`${A.icon} ${A.name}`, '#f4dda2', 700);
   if (dead(id)) return;
   say(`${p.name} plays ${A.icon} ${A.name}.`);
   const leader = leaderRival(pi);
@@ -1174,7 +1318,7 @@ async function playCard(pi, idx, target) {
     case 'reroll': p.reroll++; break;
     case 'sabotage': if (leader) { leader.sabotaged++; say(`💣 ${leader.name} is sabotaged.`); SFX.play('boom'); } break;
     case 'shield': target.shield = 2 * (alive().length - 1); paintTile(target); SFX.play('shield'); break;
-    case 'fortify': target.fort = true; SFX.play('shield'); floatText('🏰 Fortress', target.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#f2d06e'); break;
+    case 'fortify': target.fort = true; SFX.play('shield'); floatText('🏰 Fortress', target.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#f4dda2'); break;
     case 'ambush': target.trap = pi; SFX.play('trap'); break;
     case 'takeover': case 'bridge': case 'portal':
       SFX.play(card.id === 'portal' ? 'portal' : 'claim'); await setOwner(target, pi); break;
@@ -1325,37 +1469,35 @@ async function aiClaim(id) {
 }
 
 // ---------- end of round ----------
-function timeUp() {
-  const ranked = alive().map((p) => ({ i: p.i, v: ownedValue(p.i), c: S.tiles.filter((t) => t.owner === p.i).length }))
-    .sort((a, b) => b.v - a.v || b.c - a.c);
-  const tie = ranked.length > 1 && ranked[0].v === ranked[1].v && ranked[0].c === ranked[1].c;
-  gameOver(tie ? -1 : ranked[0].i, 'time');
-}
 function gameOver(winner, reason) {
   if (S.over) return;
   S.over = true; S.phase = 'over'; setTargets([]); updateUI();
   const d = dominance().map((x) => Math.round(x * 100));
-  const why = { flag: 'Every rival HQ has been captured!', dominance: `${Math.round(DOM_WIN[S.n] * 100)}% dominance reached.`, time: 'The 10 minutes are up: the highest property value wins.' }[reason];
+  const why = { flag: 'Every rival HQ has been captured!', dominance: `${Math.round(DOM_WIN[S.n] * 100)}% dominance reached.` }[reason];
   const title = winner < 0 ? 'Draw' : S.mode === 'ai' && !S.players[0].ai ? (winner === 0 ? 'You win!' : `${S.players[winner].name} wins`) : `${S.players[winner].name} wins!`;
   S.result = { title, why, winner };
   SFX.play(winner < 0 ? 'draw' : (S.mode === 'ai' && winner !== 0) ? 'lose' : 'win');
-  const used = ROUND_SECONDS - Math.max(0, S.timeLeft);
-  showOverlay(`<h2 style="color:${winner < 0 ? '#fff' : pcss(winner)}">${title}</h2><p>${why}</p>
-    <ul>${S.players.map((p) => `<li style="color:${pcss(p.i)}">${CHARACTERS[p.char].icon} ${p.name}: ${d[p.i]}% dominance${p.alive ? '' : ' · eliminated'}</li>`).join('')}
-    <li>Play time: ${Math.floor(used / 60)}:${String(Math.floor(used % 60)).padStart(2, '0')} · ${S.turn + 1} turns</li></ul>
-    <div class="btns"><button data-again>Play again</button><button class="alt" data-menu>Menu</button></div>`);
+  const used = S.elapsed;
+  showOverlay(`<div class="logo">${LOGO}</div><div class="eyebrow center">${winner < 0 ? 'Stalemate' : 'Victory'}</div><h2>${title}</h2><p class="center"><i>${why}</i></p><div class="rule"></div>
+    ${S.players.map((p) => `<div class="seat ${p.i === winner ? 'on' : ''} ${p.alive ? '' : 'off'}" style="--pc:${pcss(p.i)}"><i class="gem"></i>${gl(CHARACTERS[p.char].icon)} ${p.name}<span style="margin-left:auto">${d[p.i]}% dominance${p.alive ? '' : ' · eliminated'}</span></div>`).join('')}
+    <p class="center" style="color:var(--muted)">Play time ${clock(used)} · ${S.turn + 1} turns</p>
+    <div class="btns"><button class="btn" data-again>Play again</button><button class="btn dark" data-menu>Menu</button></div>`);
   pushRemote();
 }
 
 // ---------- UI ----------
-function say(t) { $('msg').textContent = t; pushRemote(); }
-async function banner(text, color = '#fff', ms = 900) {
-  const b = $('banner'); b.textContent = text; b.style.color = color; b.style.opacity = 1;
-  await sleep(ms); b.style.opacity = 0;
+const EMOJI = /(\p{Extended_Pictographic}\uFE0F?)/gu;
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const goldify = (t) => esc(t).replace(EMOJI, '<span class="glyph">$1</span>');
+function say(t) { $('msg').innerHTML = goldify(t); pushRemote(); }
+async function banner(text, color = 'var(--gold)', ms = 900) {
+  const b = $('banner'); b.innerHTML = `<div class="t"></div><div class="u"></div>`; b.querySelector('.t').textContent = text.replace(EMOJI, '').trim();
+  b.style.setProperty('--bc', color); b.classList.add('show');
+  await sleep(ms); b.classList.remove('show');
 }
 const floats = [];
 function floatText(text, worldPos, color) {
-  const el = document.createElement('div'); el.className = 'float'; el.textContent = text; el.style.color = color;
+  const el = document.createElement('div'); el.className = 'float'; el.innerHTML = goldify(text); el.style.color = color;
   document.body.append(el); floats.push({ el, pos: worldPos.clone(), t: 0 });
 }
 function updateFloats(dt) {
@@ -1371,12 +1513,17 @@ function updateFloats(dt) {
 function setTargets(ts) { if (S) S.targets = ts; }
 function passScreen(p) {
   return new Promise((res) => {
-    showOverlay(`<h2 style="color:${pcss(p.i)}">${CHARACTERS[p.char].icon} ${p.name}'s turn</h2><p>Pass the device. Your action cards stay hidden until you continue.</p>
-      <div class="btns"><button id="goPass">I'm ready</button></div>`);
+    showOverlay(`<div class="eyebrow center">Pass the device</div><h2>${gl(CHARACTERS[p.char].icon)} ${p.name}</h2>
+      <p class="center">Your action cards stay hidden until you are ready.</p>
+      <div class="btns"><button class="btn" id="goPass">I'm ready</button></div>`);
     $('goPass').onclick = () => { hideOverlay(); res(); };
   });
 }
-const statusIcons = (p) => [p.lucky && '🪙', p.ki && '💥', p.reroll && '🎲', p.sabotaged && '💣', p.double && '⚡', p.equal && '⚖️', p.second && '🍀'].filter(Boolean).join(' ');
+const statusIcons = (p) => [p.lucky && '🪙', p.ki && '💥', p.reroll && '🎲', p.sabotaged && '💣', p.double && '⚡', p.equal && '⚖️', p.second && '🍀', p.wind && '💨'].filter(Boolean).join(' ');
+const gl = (e) => `<span class="glyph">${e}</span>`;
+const LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c9"/><stop offset=".5" stop-color="#d9b46a"/><stop offset="1" stop-color="#8b6a37"/></linearGradient></defs>
+  <g fill="url(#lg)" stroke="#2a1c08" stroke-width="1.1">${[34, -34].map((a) => `<g transform="rotate(${a} 50 46)"><path d="M50 4 L54.5 12 L54 50 L46 50 L45.5 12Z"/><path d="M50 8 L50 48" stroke="#fff3c9" stroke-width=".8" fill="none"/><rect x="37" y="50" width="26" height="5" rx="2"/><rect x="47" y="55" width="6" height="16" rx="2"/><circle cx="50" cy="74.5" r="4"/></g>`).join('')}</g>
+  <path d="M34 72 L50 57 L66 72 L66 94 L34 94Z" fill="#14111a" stroke="url(#lg)" stroke-width="3" stroke-linejoin="round"/><path d="M46 94 L46 82 Q50 77 54 82 L54 94" fill="url(#lg)"/><circle cx="50" cy="68" r="2.4" fill="url(#lg)"/></svg>`;
 function buildHud() {
   const left = $('leftSide'), right = $('rightSide'); left.innerHTML = right.innerHTML = '';
   const order = S.players.map((p) => p.i).sort((a, b) => [0, 2, 1, 3].indexOf(slotOf(a)) - [0, 2, 1, 3].indexOf(slotOf(b)));
@@ -1394,30 +1541,29 @@ function updateUI() {
     const C = CHARACTERS[p.char], tiles = S.tiles.filter((t) => t.owner === p.i).length;
     const off = S.mode === 'remote' && !p.ai && !remoteSeats[p.slot].online ? ' 📵' : '';
     el.classList.toggle('active', S.cur === p.i && !S.over); el.classList.toggle('dead', !p.alive);
-    el.innerHTML = `<div class="nm">${C.icon} ${p.name}${off} ${p.superUsed ? '' : `<span title="${C.superName} available">${C.superIcon}</span>`} ${statusIcons(p)}</div>
-      <div class="st">🏠 ${tiles} · ⭐ ${ownedValue(p.i)} · ${Math.round(d[p.i] * 100)}% · 💎 ${beaconCount(p.i)}/${need} · 🂠 ${p.hand.length}</div>`;
+    const boons = p.perks.map((k) => `<span title="${PERKS[k].name}: ${PERKS[k].text}">${gl(PERKS[k].icon)}</span>`).join('');
+    el.innerHTML = `<div class="nm">${gl(C.icon)} ${p.name}${off} ${p.superUsed ? '' : `<span title="${C.superName}: ${C.superText}">${gl(C.superIcon)}</span>`}${boons}${statusIcons(p) ? ` ${gl(statusIcons(p))}` : ''}</div>
+      <div class="st">Lands <b>${tiles}</b> · Value <b>${ownedValue(p.i)}</b> · <b>${Math.round(d[p.i] * 100)}%</b> · Beacons <b>${beaconCount(p.i)}/${need}</b> · Cards <b>${p.hand.length}</b></div>`;
     $('dom' + p.i).style.width = d[p.i] * 100 + '%';
   }
-  const tl = Math.max(0, S.timeLeft);
-  $('timer').textContent = `${Math.floor(tl / 60)}:${String(Math.floor(tl % 60)).padStart(2, '0')}`;
-  $('timer').classList.toggle('low', tl < 60);
-  $('turnlbl').textContent = `Turn ${S.turn + 1} · ${S.players[S.cur].name} · deck ${S.deck.length}`;
+  const tl = S.elapsed;
+  $('timer').textContent = clock(tl);
+  $('turnlbl').textContent = `Turn ${S.turn + 1} · Deck ${S.deck.length}`;
   const human = isHumanTurn(), guessing = human && S.phase === 'guess';
   $('bLower').disabled = $('bHigher').disabled = !guessing;
   $('bCash').disabled = !(guessing && S.tokens > 0);
-  $('bCash').textContent = S.phase === 'claim' ? `Pick a tile (${S.claims})` : `Claim property (${S.tokens})`;
+  $('bCash').textContent = S.phase === 'claim' ? `Pick a tile · ${S.claims}` : `Claim · ${S.tokens}`;
   $('bCancel').style.display = human && S.phase === 'target' ? 'block' : 'none';
   const sc = CHARACTERS[S.players[S.cur].char];
-  $('bSuper').textContent = `${sc.superIcon} ${sc.superName}`; $('bSuper').title = sc.superText;
-  $('bSuper').style.setProperty('--sc', sc.color);
+  $('bSuper').innerHTML = `${gl(sc.superIcon)}${sc.superName}`; $('bSuper').title = sc.superText;
   $('bSuper').disabled = !(human && S.mode !== 'remote' && canSuper(S.cur));
   $('bSuper').style.display = human && !S.players[S.cur].superUsed ? '' : 'none';
-  $('tokens').textContent = S.tokens ? '★'.repeat(Math.min(S.tokens, 6)) : S.current ? cardLabel(S.current) : '';
-  $('peek').textContent = human && S.mode !== 'remote' && S.peek ? `🔭 Next card: ${cardLabel(S.peek)}${S.peek2 ? ` · then ${cardLabel(S.peek2)}` : ''}` : '';
+  $('tokens').innerHTML = `<span class="num">${S.tokens}</span>Claims`;
+  $('peek').textContent = human && S.mode !== 'remote' && S.peek ? `Next card ${cardLabel(S.peek)}${S.peek2 ? ` · then ${cardLabel(S.peek2)}` : ''}` : '';
   if (guessing) say(S.tokens === 0
     ? `Will the next card be higher or lower than ${cardLabel(S.current)}?`
-    : `${S.tokens} claim${S.tokens > 1 ? 's' : ''}! Guess again (risky) or claim property. Open card: ${cardLabel(S.current)}.`);
-  else if (human && S.phase === 'claim') say(`Pick a glowing tile to claim (${S.claims} left). ${canAttackHQ(S.cur) ? 'Rival HQs are open: 2× heads!' : `HQ shields drop at ${need} 💎 Beacons.`}`);
+    : `${S.tokens} claim${S.tokens > 1 ? 's' : ''} in hand. Press your luck on ${cardLabel(S.current)}, or claim property.`);
+  else if (human && S.phase === 'claim') say(`Choose a glowing tile to claim (${S.claims} left). ${canAttackHQ(S.cur) ? 'Rival HQ shields are down for you.' : `HQ shields fall at ${need} Beacons.`}`);
   // HQ domes crack when the active player may attack them
   for (const t of S.tiles) if (t.kind === 'hq') { const dome = t.content.userData.dome || t.content.children.find((c) => c.material?.uniforms?.uOpen); if (dome) dome.material.uniforms.uOpen.value = t.owner !== S.cur && canAttackHQ(S.cur) ? 1 : 0; }
   renderHand(); pushRemote();
@@ -1429,37 +1575,38 @@ function renderHand() {
   if (S.mode === 'pvp' && S.phase === 'pass') { hand.innerHTML = '<div class="empty">Cards are hidden until the next player is ready.</div>'; return; }
   p.hand.forEach((c, i) => {
     const A = ACTIONS[c.id], el = document.createElement('button');
-    el.className = 'hcard'; el.innerHTML = `<div class="ic">${A.icon}</div><b>${A.name}</b><small>${A.text}</small>`;
+    el.className = 'tcg'; el.innerHTML = `<span class="art">${gl(A.icon)}</span><span class="nm">${A.name}</span><span class="tx">${A.text}</span>`;
     el.disabled = !(S.phase === 'guess' && S.cur === viewer && isHumanTurn() && canPlay(viewer, c.id));
     el.onclick = () => playCard(viewer, i);
     hand.append(el);
   });
-  if (!p.hand.length) hand.innerHTML = `<div class="empty">No action cards. ${ACTION_TOTAL} of them are hidden in the deck.</div>`;
+  if (!p.hand.length) hand.innerHTML = `<div class="empty">Your hand is empty. ${ACTION_TOTAL} action cards lurk in the deck.</div>`;
 }
 
-function showOverlay(html) { const o = $('overlay'); o.innerHTML = `<div class="box">${html}</div>`; o.classList.remove('hidden'); }
+function showOverlay(html, wide = false) { const o = $('overlay'); o.innerHTML = `<div class="box panel${wide ? ' wide' : ''}">${html}</div>`; o.classList.remove('hidden'); }
 function hideOverlay() { $('overlay').classList.add('hidden'); }
 const RULES = `<ul>
-  <li><b>Higher or lower:</b> take turns guessing whether the next card is higher or lower. Equal is wrong, aces are high. Every correct guess earns a <b>claim</b>.</li>
-  <li><b>Push your luck:</b> keep guessing to stack claims, but one wrong guess loses them all.</li>
-  <li><b>Heads or tails:</b> spend claims on tiles next to your territory. Heads = the property is yours, even if a rival owned it.</li>
-  <li><b>Obstacles:</b> mountains, lakes, crystal fields and barricades block the way. The map is randomly generated every round.</li>
-  <li><b>Beacons 💎:</b> every HQ sits under an energy shield. It only drops for you once you hold enough Beacons (3 of 4 with 2 players, 2 with 3–4 players). The Beacons are on the edges, away from the direct line between the bases, so you have to expand sideways before you can strike.</li>
-  <li><b>Capture the HQ:</b> an open HQ needs 2× heads in a row. Captured players are out; the last one standing wins.</li>
-  <li><b>Dominance:</b> house 1, shop 2, tower/HQ/Beacon 3. Hold ${Math.round(DOM_WIN[2] * 100)}% (2p), ${Math.round(DOM_WIN[3] * 100)}% (3p) or ${Math.round(DOM_WIN[4] * 100)}% (4p) of all value at the start of your turn to win.</li>
-  <li><b>Action cards:</b> ${ACTION_TOTAL} magic cards in a double deck of ${104 + ACTION_TOTAL}. Drawn ones go to your hand (max ${HAND_MAX}); play them on your turn.</li>
-  <li><b>Heroes:</b> 🃏 Kaito the Duelist, 🔥 Raiden the Ki Warrior, 👁️ Mira the Seer and 🐉 Zara the Dragon Tamer. Each has a passive and one super per round.</li>
-  <li><b>Time:</b> a round lasts at most 10 minutes; then the highest property value wins.</li></ul>`;
+  <li><b>Higher or lower.</b> Take turns guessing whether the next card is higher or lower. Equal is wrong, aces are high. Every correct guess earns a claim.</li>
+  <li><b>Press your luck.</b> Keep guessing to stack claims; one wrong guess loses them all.</li>
+  <li><b>Heads or tails.</b> Spend claims on tiles next to your territory. Heads: the property is yours, even if a rival owned it.</li>
+  <li><b>Obstacles.</b> Mountains, lakes, crystal fields and barricades block the way. The map is forged anew every round.</li>
+  <li><b>Beacons.</b> Every HQ hides under an energy shield that falls for you once you hold ${2} Beacons. They stand on the flanks, away from the straight road between the bases.</li>
+  <li><b>Assassination.</b> An open HQ needs 2× heads in a row. Its owner is out; the last house standing wins.</li>
+  <li><b>Dominance.</b> House 1, shop 2, tower, HQ and Beacon 3. Hold ${Math.round(DOM_WIN[2] * 100)}% (2p), ${Math.round(DOM_WIN[3] * 100)}% (3p) or ${Math.round(DOM_WIN[4] * 100)}% (4p) of all value at the start of your turn to win.</li>
+  <li><b>Action cards.</b> ${ACTION_TOTAL} spells hide in a double deck of ${104 + ACTION_TOTAL} cards. Drawn ones join your hand; play them on your turn.</li>
+  <li><b>Heroes.</b> Kaito, Raiden, Mira and Zara each carry a signature power and one super, plus two random Boons that change every game.</li>
+  <li><b>Pace.</b> A round usually takes about ten minutes; the clock only counts, it never ends the game.</li></ul>`;
 let menuCount = 2;
-function countPicker(id = 'cnt') {
-  return `<div class="count">Players: ${[2, 3, 4].map((k) => `<button data-count="${k}" class="${k === menuCount ? 'on' : ''}">${k}</button>`).join('')}</div>`;
+function countPicker() {
+  return `<div class="count">Players ${[2, 3, 4].map((k) => `<button data-count="${k}" class="${k === menuCount ? 'on' : ''}"><span>${k}</span></button>`).join('')}</div>`;
 }
 function showMenu() {
-  showOverlay(`<h1>ESTATE ASSASSINS</h1><p style="margin:0;font-size:11px;color:#6f789a">v${VERSION}</p>
-    <p>Guess higher or lower, win the coin flip, seize the Beacons and storm the enemy HQ.</p>${countPicker()}
-    <div class="btns"><button data-mode="ai">Play vs AI</button>${REMOTE ? '<button data-lobby>Play with phones</button>' : ''}<button class="alt" data-mode="pvp">Hot-seat (one screen)</button></div>
-    ${REMOTE ? '' : '<p style="font-size:12px;color:#8891b0">Want to play with phones? Start the server with <code>node server.mjs</code> and open the address it prints.</p>'}
-    <details><summary style="cursor:pointer;color:#c8cee6">Rules</summary>${RULES}</details>`);
+  showOverlay(`<div class="logo">${LOGO}</div><h1 class="title">Estate Assassins</h1>
+    <p class="tagline">Guess the cards. Flip the coin. Seize the Beacons. Strike the house.</p><div class="version">Edition ${VERSION}</div>
+    <div class="rule"></div>${countPicker()}
+    <div class="btns"><button class="btn" data-mode="ai">Play vs AI</button>${REMOTE ? '<button class="btn" data-lobby>Play with phones</button>' : ''}<button class="btn dark" data-mode="pvp">Hot-seat</button></div>
+    ${REMOTE ? '' : '<p class="center" style="font-size:13px;color:var(--muted)">Phones as controllers? Start <code>node server.mjs</code> and open the address it prints.</p>'}
+    <details><summary>◆ The Rules ◆</summary>${RULES}</details>`);
   document.body.classList.remove('remote', 'pipon'); resize();
   if (S?.mode === 'remote') { S.over = true; S = null; }
   pushLobby();
@@ -1467,17 +1614,31 @@ function showMenu() {
 function heroCards(taken) {
   return `<div class="heroes">${CHAR_IDS.map((id) => { const C = CHARACTERS[id];
     return `<button class="hero" style="--hc:${C.color}" data-char="${id}" ${taken.includes(id) ? 'disabled' : ''}>
-      <div class="hi">${C.icon}</div><div class="hn">${C.name}</div><div class="ht">${C.title}</div>
-      <div class="hp"><b>Passive:</b> ${C.passive}</div><div class="hs"><b>${C.superIcon} ${C.superName} (1×):</b> ${C.superText}</div></button>`; }).join('')}</div>`;
+      <span class="medal">${gl(C.icon)}</span><span class="hn">${C.name}</span><span class="ht">${C.title}</span>
+      <span class="hp"><span class="lab">Signature</span>${C.passive}</span>
+      <span class="hs"><span class="lab">${gl(C.superIcon)} ${C.superName} · once</span>${C.superText}</span></button>`; }).join('')}</div>`;
+}
+// Shows each hero's two random Boons before the first turn.
+function perkReveal() {
+  return new Promise((res) => {
+    let done = false; const go = () => { if (!done) { done = true; hideOverlay(); res(); } };
+    showOverlay(`<div class="eyebrow center">This game's Boons</div><h2>The Houses Prepare</h2>
+      <p class="center" style="color:var(--muted)">Every hero keeps their signature power and receives two random Boons for this game.</p>
+      <div class="perks">${S.players.map((p) => `<div class="perkrow" style="--pc:${pcss(p.i)}"><div class="who"><span class="art">${gl(CHARACTERS[p.char].icon)}</span><span><i class="gem"></i> ${p.name}</span></div>
+        <div class="boon">${p.perks.map((k) => `${gl(PERKS[k].icon)} <b>${PERKS[k].name}</b><br>${PERKS[k].text}`).join('<div class="rule" style="margin:6px 0"></div>')}</div></div>`).join('')}</div>
+      <div class="btns"><button class="btn" id="goBoons">To battle</button></div>`, true);
+    $('goBoons').onclick = go;
+    sleep(S.mode === 'remote' || AUTOPLAY ? 7000 : 60000).then(go);
+  });
 }
 let charSelect = null;
 function showCharSelect(mode, n, picks = []) {
   charSelect = { mode, n, picks };
   const seat = picks.length;
-  const who = mode === 'ai' ? 'Choose your hero' : `${COLOR_NAMES[seat]} player: choose your hero`;
-  showOverlay(`<h2 style="color:${PCSS[seat]}">${who}</h2>
-    <p>Inspired by card duels and ki battles. Every hero has a passive power and one super per round.</p>
-    ${heroCards(picks)}<div class="btns"><button class="alt" data-menu>Back</button></div>`);
+  const who = mode === 'ai' ? 'Choose your hero' : `House ${COLOR_NAMES[seat]}: choose your hero`;
+  showOverlay(`<div class="eyebrow center">${mode === 'ai' ? 'Your champion' : `Player ${seat + 1} of ${n}`}</div><h2 style="--pc:${PCSS[seat]}">${mode === 'ai' ? '' : '<i class="gem" style="margin-right:12px;vertical-align:middle"></i>'}${who}</h2>
+    <p class="center" style="color:var(--muted)">Each hero brings a signature power and one super. Two random Boons are added when the game begins.</p>
+    ${heroCards(picks)}<div class="btns"><button class="btn dark" data-menu>Back</button></div>`, true);
 }
 function onCharPicked(id) {
   if (!charSelect) return;
@@ -1497,7 +1658,7 @@ $('overlay').addEventListener('click', (e) => {
   else if (b.hasAttribute('data-close')) hideOverlay();
   else if (b.hasAttribute('data-reset')) fetch('/reset', { method: 'POST' });
 });
-$('help').onclick = () => showOverlay(`<h2>Rules</h2>${RULES}<div class="btns"><button data-close>Keep playing</button><button class="alt" data-menu>Quit to menu</button></div>`);
+$('help').onclick = () => showOverlay(`<div class="eyebrow center">Codex</div><h2>The Rules</h2>${RULES}<div class="btns"><button class="btn" data-close>Keep playing</button><button class="btn dark" data-menu>Quit to menu</button></div>`);
 // In phone mode the PC only shows the game; all input comes from the phones.
 const localInput = () => isHumanTurn() && S.mode !== 'remote';
 $('bHigher').onclick = () => localInput() && guess('higher');
@@ -1506,8 +1667,9 @@ $('bCash').onclick = () => localInput() && cashIn();
 $('bSuper').onclick = () => localInput() && useSuper(S.cur);
 function cancelTarget() { if (S?.phase === 'target') { S.phase = 'guess'; S.pending = null; setTargets([]); updateUI(); } }
 $('bCancel').onclick = () => localInput() && cancelTarget();
-$('mute').textContent = SFX.muted ? '🔇' : '🔊';
-$('mute').onclick = () => { $('mute').textContent = SFX.toggle() ? '🔇' : '🔊'; };
+const SPEAKER = (on) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>${on ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>' : '<path d="M16 9l5 6M21 9l-5 6"/>'}</svg>`;
+$('mute').innerHTML = SPEAKER(!SFX.muted);
+$('mute').onclick = () => { $('mute').innerHTML = SPEAKER(!SFX.toggle()); };
 document.addEventListener('click', (e) => { if (e.target.closest('button')) SFX.play('click'); }, true);
 function chooseTile(t) {
   if (!t || !S.targets.includes(t)) return;
@@ -1543,7 +1705,7 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerleave', () => { $('tip').style.display = 'none'; });
 
 // ---------- loop ----------
-let elapsed = 0, uiTick = 0, remoteTick = 0, lastSec = 0, lastStep = performance.now();
+let elapsed = 0, uiTick = 0, remoteTick = 0, lastStep = performance.now();
 // Game logic advances with real time; requestAnimationFrame drives it, the interval keeps it going when frames are throttled.
 function step() {
   const now = performance.now(), dt = Math.min((now - lastStep) / 1000, .1) * SPEED; lastStep = now; elapsed += dt;
@@ -1572,12 +1734,9 @@ function step() {
       sp.material.opacity = !p.alive ? .2 : active || !S.started ? 1 : .55;
     });
     if (S.started && !S.over) {
-      S.timeLeft -= dt;
-      const sec = Math.ceil(S.timeLeft);
-      if (sec !== lastSec) { lastSec = sec; if (sec <= 10 && sec > 0) SFX.play('tick'); }
+      S.elapsed += dt;
       if ((uiTick += dt) > .25) { uiTick = 0; if ((remoteTick += .25) >= 1) { remoteTick = 0; pushRemote(); }
-        $('timer').textContent = `${Math.floor(Math.max(0, S.timeLeft) / 60)}:${String(Math.floor(Math.max(0, S.timeLeft) % 60)).padStart(2, '0')}`; $('timer').classList.toggle('low', S.timeLeft < 60); }
-      if (S.timeLeft <= 0) timeUp();
+        $('timer').textContent = clock(S.elapsed); }
     }
   }
   composer.render();
@@ -1602,7 +1761,7 @@ function remoteState(slot) {
     players: S.players.map((x) => ({ slot: x.slot, name: x.name, icon: CHARACTERS[x.char].icon, alive: x.alive, beacons: beaconCount(x.i), dom: Math.round(d[x.i] * 100) })),
     beaconsNeeded: beaconsNeeded(), canAttack: canAttackHQ(seat),
     canGuess: mine && S.phase === 'guess', canCash: mine && S.phase === 'guess' && S.tokens > 0, canCancel: mine && S.phase === 'target',
-    timeLeft: Math.max(0, Math.round(S.timeLeft)), status: statusIcons(p),
+    elapsed: Math.round(S.elapsed), status: statusIcons(p), perks: p.perks.map((k) => ({ ...PERKS[k] })),
     over: S.over, result: S.result ? { ...S.result, winner: S.result.winner >= 0 ? slotOf(S.result.winner) : -1 } : null,
     hero: { id: p.char, ...CHARACTERS[p.char], glow: undefined }, superUsed: p.superUsed, canSuper: mine && canSuper(seat),
   };
@@ -1629,7 +1788,7 @@ function updatePip() {
   if (!on) return;
   const p = S.players[S.cur], C = CHARACTERS[p.char];
   $('pip').style.setProperty('--pc', pcss(S.cur));
-  $('pipLbl').textContent = `📱 ${C.icon} ${p.name}'s phone`;
+  $('pipLbl').innerHTML = `<i class="gem"></i> ${p.name}'s phone`;
   $('pipView').contentWindow?.postMessage({ type: 'state', seat: slotOf(S.cur), state: remoteState(slotOf(S.cur)) }, location.origin);
 }
 function fitPip() {
@@ -1665,12 +1824,11 @@ let remoteInfo = { urls: [] };
 async function showLobby() {
   remoteCount = menuCount;
   try { remoteInfo = await (await fetch('/info')).json(); } catch { /* server unreachable: lobby shows no address */ }
-  showOverlay(`<h2>Play with phones</h2><p>This PC is the board. Connect every phone to the same Wi-Fi and open:</p>
+  showOverlay(`<div class="eyebrow center">The gathering</div><h2>Play with Phones</h2><p class="center" style="color:var(--muted)">This screen is the board. Join the same Wi-Fi and open the address on every phone.</p>
     <div class="lobby"><div class="qr" id="qr"></div><div><div class="url">${remoteInfo.urls[0] || 'no network address found'}</div>
-    ${remoteInfo.urls.slice(1).map((u) => `<div class="url" style="font-size:12px;opacity:.7">${u}</div>`).join('')}
+    ${remoteInfo.urls.slice(1).map((u) => `<div class="alt-url">${u}</div>`).join('')}
     ${countPicker()}<div id="seats"></div></div></div>
-    <p style="font-size:12px;color:#8891b0">Every player picks a colour and hero on their own phone. Seats without a phone are played by the AI.</p>
-    <div class="btns"><button id="goRemote" data-mode="remote">Start</button><button class="alt" data-reset>Free all seats</button><button class="alt" data-menu>Back</button></div>`);
+    <div class="btns"><button class="btn" id="goRemote" data-mode="remote">Start</button><button class="btn dark" data-reset>Free all seats</button><button class="btn dark" data-menu>Back</button></div>`, true);
   renderSeats(); pushLobby();
   if (remoteInfo.urls[0]) {
     window.qrcode || await new Promise((res) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'; sc.onload = sc.onerror = res; document.head.append(sc); });
@@ -1681,8 +1839,8 @@ function renderSeats() {
   const el = $('seats'); if (!el) return;
   const humans = remoteSeats.filter((s) => s.taken).length, ai = Math.max(0, remoteCount - humans);
   el.innerHTML = remoteSeats.map((s, i) => { const C = CHARACTERS[remoteChars[i]];
-    return `<div class="seat ${s.online ? 'on' : ''} ${s.taken ? '' : 'off'}" style="--pc:${PCSS[i]}">${COLOR_NAMES[i]}: <span>${s.online ? '📱 connected' : s.taken ? '⚠️ connection lost' : 'free'}${C && s.taken ? ` · ${C.icon} ${C.name}` : s.taken ? ' · choosing a hero…' : ''}</span></div>`; }).join('')
-    + `<p style="font-size:12px;color:#8891b0;margin:6px 0 0">Every connected phone plays in the colour it picked${ai ? `; ${ai} AI rival${ai > 1 ? 's' : ''} fill${ai > 1 ? '' : 's'} up to ${remoteCount} players` : ''}.</p>`;
+    return `<div class="seat ${s.online ? 'on' : ''} ${s.taken ? '' : 'off'}" style="--pc:${PCSS[i]}"><i class="gem"></i>${COLOR_NAMES[i]}<span>${s.online ? 'connected' : s.taken ? 'connection lost' : 'free'}${C && s.taken ? ` · ${gl(C.icon)} ${C.name}` : s.taken ? ' · choosing a hero…' : ''}</span></div>`; }).join('')
+    + `<p style="font-size:13px;color:var(--muted);margin:8px 0 0">Every connected phone plays in the colour it picked${ai ? `; ${ai} AI rival${ai > 1 ? 's' : ''} fill${ai > 1 ? '' : 's'} up to ${remoteCount} players` : ''}.</p>`;
   $('goRemote').disabled = humans === 0;
   $('goRemote').textContent = humans ? `Start: ${humans} phone${humans > 1 ? 's' : ''}${ai ? ` + ${ai} AI` : ''}` : 'Waiting for a phone…';
 }

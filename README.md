@@ -2,7 +2,7 @@
 
 A turn-based **higher-or-lower** card game about seizing property: guess the next card, spend your claims on
 **heads-or-tails** coin flips, grab the Beacons and storm the enemy HQ. Two to four players, on one screen or with
-**phones as controllers** while the PC shows the 3D board. A round lasts at most 10 minutes.
+**phones as controllers** while the PC shows the 3D board. A round usually takes about ten minutes.
 
 Built with plain HTML/JavaScript and [Three.js](https://threejs.org) (r170, loaded from jsDelivr, pinned in the import map).
 No build step, no dependencies besides Node.js for the optional LAN server.
@@ -34,14 +34,14 @@ An internet connection is needed for Three.js (and for the QR code in the lobby)
 4. **Random map.** 36 tiles (6×6), generated every round with four-fold rotational symmetry so every corner is
    equally fair. **Mountains, lakes, crystal fields and barricades** are impassable.
 5. **Beacons and shields: why you can't rush the enemy base.** Every HQ sits under an energy shield that only drops
-   for you once you control enough **Beacons 💎** (3 of 4 with two players, 2 with three or four players). The
-   Beacons sit on the edges of the map, away from the straight line between the bases, so you have to expand
-   sideways and fight over the flanks before you can strike.
+   for you once you control **2 Beacons 💎**. The Beacons sit on the edges of the map, away from the straight line
+   between the bases, so you have to expand sideways and fight over the flanks before you can strike.
 6. **Capture the HQ.** An open HQ needs 2× heads in a row. A captured player is eliminated (their land turns
    neutral); the last player standing wins.
 7. **Dominance.** House 1, shop 2, tower/HQ/Beacon 3. Hold 60% (2 players), 50% (3) or 45% (4) of all property
    value at the start of your turn to win.
-8. **Time.** After 10 minutes the highest property value wins.
+8. **No time limit.** The clock only shows how long the round has been going; a round ends by assassination or
+   dominance and usually takes about ten minutes.
 
 ### Action cards
 
@@ -82,6 +82,31 @@ super per round.
 | 🔥 Raiden, the Ki Warrior | From the 3rd correct guess in a turn, +1 extra claim per guess | **Ki Blast**: next coin flip is heads, even against sabotage |
 | 👁️ Mira, the Seer | Equal cards count as correct | **Third Eye**: see the next 2 playing cards |
 | 🐉 Zara, the Dragon Tamer | Tiles across an obstacle count as adjacent | **Dragon Breath**: burn every obstacle next to her land into neutral land |
+
+### Boons
+
+At the start of every game each hero receives **two random Boons** on top of their signature power. Boons are
+deliberately weaker than the signature power, but they make every game play a little differently.
+
+| Boon | Effect |
+| --- | --- |
+| 🍀 Lucky Start | First coin flip of the game is heads. |
+| 👝 Deep Pockets | Hold one extra action card. |
+| 🎴 Card Sharp | Start with one extra action card. |
+| 🧭 Pathfinder | Start with a free tile next to your HQ. |
+| 🏯 Bulwark | Your HQ needs 3× heads to fall instead of 2. |
+| 💨 Second Wind | Once per game, your first wrong guess is forgiven. |
+| ⛏️ Prospector | Capturing a Beacon gives +1 claim. |
+| 💼 Looter | Stealing a rival tile draws an action card (once per turn). |
+| 🧿 Lucky Charm | A failed coin flip has a 25% chance to be flipped again. |
+| 📈 Momentum | Your 4th correct guess in a turn gives +1 extra claim. |
+
+### Look and feel
+
+One theme throughout: an assassins' guild in obsidian and antique gold with a single blood-red accent. Panels use
+gilded frames, buttons are engraved gold or obsidian plaques, action cards are framed like trading cards, and every
+icon is cast in the same gold. Player houses are gems: Sapphire, Ruby, Emerald and Topaz. Fonts: Cinzel, Cinzel
+Decorative and Spectral (Google Fonts).
 
 ### Controls on the PC
 
