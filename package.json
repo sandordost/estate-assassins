@@ -1,0 +1,9 @@
+{
+  "name": "higher-ground",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Higher-or-lower card game with property, coin flips and capture the flag; PC as board, phones as controllers.",
+  "type": "module",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=18" }
+}

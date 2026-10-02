@@ -14,6 +14,27 @@
     font: 14px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden;
     -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
   #c { position: absolute; left: 0; right: 0; top: 64px; bottom: 196px; width: 100%; height: calc(100% - 260px); display: block; touch-action: none; }
+  body.remote #c { height: calc(100% - 64px); }
+  body.remote #bottom { display: none; }
+  .heroes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .hero { border-radius: 14px; padding: 12px 10px; text-align: left; background: #1b2442; border: 2px solid var(--hc);
+    display: flex; flex-direction: column; gap: 4px; transition: transform .15s; color: var(--text); }
+  .hero:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 6px 24px color-mix(in srgb, var(--hc) 40%, transparent); }
+  .hero:disabled { opacity: .3; }
+  .hero .hi { font-size: 40px; line-height: 1; text-align: center; filter: drop-shadow(0 0 10px var(--hc)); }
+  .hero .hn { font-weight: 900; font-size: 18px; color: var(--hc); text-align: center; }
+  .hero .ht { font-size: 12px; color: var(--muted); text-align: center; margin-top: -4px; }
+  .hero .hp { font-size: 12px; } .hero .hs { font-size: 12px; color: #f2d06e; }
+  @media (max-width: 640px) { .heroes { grid-template-columns: 1fr; } .hero .hi { font-size: 30px; } }
+  #mute { position: absolute; top: 112px; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); }
+  #bSuper { background: linear-gradient(135deg, var(--sc, #b07cff), #2a3350); }
+  .lobby { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; margin-top: 10px; }
+  .lobby .qr { background: #fff; padding: 8px; border-radius: 10px; width: 176px; height: 176px; }
+  .lobby .qr svg { width: 100%; height: 100%; display: block; }
+  .lobby .url { font: 700 15px ui-monospace, monospace; color: var(--gold); word-break: break-all; }
+  .seat { padding: 6px 10px; border-radius: 8px; background: #1b2442; margin: 6px 0; }
+  .seat.on { box-shadow: inset 4px 0 0 currentColor; }
+  @media (max-width: 640px) { .lobby { grid-template-columns: 1fr; } }
   button { font: inherit; color: inherit; cursor: pointer; }
 
   #top { position: absolute; top: 0; left: 0; right: 0; height: 64px; display: grid;
@@ -108,12 +129,14 @@
 <div id="msg">Welkom bij Higher Ground</div>
 <div id="peek"></div>
 <button id="help" title="Regels">?</button>
+<button id="mute" title="Geluid aan/uit">🔊</button>
 <div id="bottom">
   <div id="controls">
     <button id="bLower">▼ Lager</button>
     <div id="tokens"></div>
     <button id="bHigher">▲ Hoger</button>
     <button id="bCash">Claim</button>
+    <button id="bSuper">Super</button>
     <button id="bCancel">Annuleer</button>
   </div>
   <div id="hand"></div>
@@ -127,7 +150,8 @@ import * as THREE from 'three';
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '0.1.0';
+const VERSION = '0.3.0';
+let remoteSeats = [{ taken: false, online: false }, { taken: false, online: false }];
 const COLS = 5, ROWS = 6, SP = 1.15, HAND_MAX = 5, ROUND_SECONDS = 600, DOM_WIN = 0.6;
 const PCSS = ['#3fa9ff', '#ff5a4f'];
 const TILE_COL = [0x1f5f99, 0x99332d], TILE_NEUTRAL = 0x3c4250;
@@ -136,6 +160,22 @@ const SUITS = ['♠', '♥', '♦', '♣'];
 const rankLabel = (r) => ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' })[r] || String(r);
 const cardLabel = (c) => rankLabel(c.rank) + SUITS[c.suit];
 const TILE_NAMES = { 1: 'Huis', 2: 'Winkel', 3: 'Toren' };
+
+// Three playable heroes: a card duelist (Yu-Gi-Oh-inspired), a ki warrior (Dragon Ball-inspired) and a seer.
+// Each has a passive and a once-per-round super.
+const CHARACTERS = {
+  duelist: { name: 'Kaito', title: 'De Duellist', icon: '🃏', color: '#b07cff', glow: 0xb07cff,
+    passive: 'Start met 2 actiekaarten en mag er 6 vasthouden.', superName: 'Kaartenregen', superIcon: '🌠',
+    superText: 'Trek meteen de volgende 2 actiekaarten uit de stapel.', shout: 'Mijn beurt! Kaartenregen!' },
+  warrior: { name: 'Raiden', title: 'De Ki-krijger', icon: '🔥', color: '#ffb02e', glow: 0xffa020,
+    passive: 'Power-up: vanaf je 3e goede gok in één beurt krijg je +1 extra claim per goede gok.', superName: 'Ki-golf', superIcon: '💥',
+    superText: 'Je volgende muntworp is gegarandeerd kop, ook tegen sabotage.', shout: 'Ki-golf… LOS!' },
+  seer: { name: 'Mira', title: 'De Zienster', icon: '👁️', color: '#4fe3c1', glow: 0x4fe3c1,
+    passive: 'Een gelijke kaart telt altijd als goed geraden.', superName: 'Derde oog', superIcon: '🔮',
+    superText: 'Zie de volgende 2 speelkaarten van de stapel.', shout: 'Ik zie wat komen gaat…' },
+};
+const CHAR_IDS = Object.keys(CHARACTERS);
+const handMax = (p) => p.char === 'duelist' ? HAND_MAX + 1 : HAND_MAX;
 
 // 15 action cards hidden in the deck (Yu-Gi-Oh/Magic style: drawn into your hand, played on your turn).
 const ACTIONS = {
@@ -154,6 +194,7 @@ const ACTIONS = {
 // ---------- helpers ----------
 // Test hooks: ?speed=N runs the whole game N× faster, ?autoplay lets the AI play both sides.
 const params = new URLSearchParams(location.search);
+const REMOTE = location.protocol.startsWith('http') && !params.has('noremote');
 const SPEED = Math.max(1, Number(params.get('speed')) || 1), AUTOPLAY = params.has('autoplay');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms / SPEED));
 const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -167,16 +208,92 @@ function updateTweens(dt) {
     tw.fn(tw.ease(k)); if (k >= 1) { tweens.splice(i, 1); tw.res(); }
   }
 }
-let actx;
-function beep(f = 440, d = .08, type = 'sine', v = .05) {
-  try {
-    actx ??= new AudioContext();
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.type = type; o.frequency.value = f; g.gain.value = v;
-    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + d);
-    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + d);
-  } catch { /* audio is optional */ }
-}
+// ---------- sound: everything is synthesised with WebAudio, no audio files ----------
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } } };
+const SFX = (() => {
+  let ctx = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null, musicOn = false;
+  let muted = store.get('hg-muted') === '1';
+  function init() {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = muted ? 0 : 1; master.connect(ctx.destination);
+    sfxBus = ctx.createGain(); sfxBus.gain.value = .9; sfxBus.connect(master);
+    musicBus = ctx.createGain(); musicBus.gain.value = .0; musicBus.connect(master);
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  function tone(f, t, dur, { type = 'sine', vol = .08, to, attack = .006, bus = sfxBus } = {}) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(bus); o.start(t); o.stop(t + dur + .05);
+  }
+  function noise(t, dur, { vol = .1, freq = 2000, to, q = 1, type = 'bandpass', attack = .004 } = {}) {
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = noiseBuf; f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(freq, t); if (to) f.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    src.connect(f).connect(g).connect(sfxBus); src.start(t); src.stop(t + dur + .05);
+  }
+  const arp = (t, notes, step, opts) => notes.forEach((f, i) => tone(f, t + i * step, opts?.dur ?? .25, opts));
+  const S_ = {
+    click: (t) => tone(1200, t, .04, { type: 'square', vol: .03 }),
+    start: (t) => { arp(t, [262, 330, 392, 523], .09, { type: 'triangle', vol: .07, dur: .35 }); noise(t, .6, { freq: 6000, to: 1500, vol: .04 }); },
+    turn: (t) => { tone(660, t, .18, { type: 'sine', vol: .06 }); tone(990, t + .09, .3, { type: 'sine', vol: .05 }); },
+    deal: (t) => { noise(t, .09, { freq: 4500, to: 1800, vol: .14, q: .8 }); tone(180, t + .05, .06, { type: 'triangle', vol: .05 }); },
+    flip: (t) => { noise(t, .07, { freq: 5000, to: 2500, vol: .12 }); noise(t + .1, .06, { freq: 3000, to: 1200, vol: .1 }); },
+    draw_action: (t) => { arp(t, [784, 988, 1175, 1568], .06, { type: 'sine', vol: .05, dur: .4 }); noise(t, .5, { freq: 8000, to: 4000, vol: .03, q: 4 }); },
+    correct: (t, streak = 1) => { const b = 523 * 2 ** (Math.min(streak - 1, 6) / 12); arp(t, [b, b * 1.26, b * 1.5], .07, { type: 'triangle', vol: .07, dur: .3 }); },
+    powerup: (t) => { tone(220, t, .5, { type: 'sawtooth', vol: .05, to: 880 }); arp(t + .25, [880, 1109, 1319], .06, { type: 'square', vol: .04, dur: .25 }); noise(t, .5, { freq: 800, to: 4000, vol: .05 }); },
+    wrong: (t) => { tone(311, t, .18, { type: 'sawtooth', vol: .06 }); tone(220, t + .16, .4, { type: 'sawtooth', vol: .06, to: 140 }); },
+    save: (t) => arp(t, [392, 523, 659], .07, { type: 'sine', vol: .07 }),
+    coin_toss: (t) => { tone(2400, t, .25, { type: 'sine', vol: .05 }); tone(3200, t, .2, { type: 'sine', vol: .03 }); noise(t, .08, { freq: 7000, vol: .05 }); },
+    coin_spin: (t) => { for (let i = 0; i < 7; i++) tone(2600 + (i % 2) * 500, t + i * .11, .05, { type: 'sine', vol: .018 }); },
+    coin_land: (t) => { noise(t, .05, { freq: 3500, vol: .12 }); tone(1800, t, .35, { type: 'sine', vol: .05 }); tone(2700, t + .01, .25, { type: 'sine', vol: .03 }); },
+    heads: (t) => arp(t, [659, 988], .08, { type: 'triangle', vol: .08, dur: .35 }),
+    tails: (t) => tone(247, t, .35, { type: 'triangle', vol: .07, to: 196 }),
+    claim: (t) => { arp(t, [523, 659, 784], .0, { type: 'triangle', vol: .05, dur: .6 }); noise(t, .15, { freq: 300, vol: .08, type: 'lowpass' }); },
+    steal: (t) => { tone(196, t, .3, { type: 'sawtooth', vol: .05 }); arp(t + .12, [587, 740, 880], .06, { type: 'square', vol: .04, dur: .3 }); },
+    fail: (t) => tone(392, t, .3, { type: 'sine', vol: .05, to: 330 }),
+    cast: (t) => { noise(t, .35, { freq: 600, to: 5000, vol: .07, q: 2 }); tone(880, t + .2, .3, { type: 'sine', vol: .04 }); },
+    shield: (t) => { tone(440, t, .6, { type: 'sine', vol: .05, to: 660 }); tone(660, t + .05, .6, { type: 'sine', vol: .04, to: 990 }); },
+    boom: (t) => { noise(t, .7, { freq: 900, to: 80, vol: .25, type: 'lowpass' }); tone(90, t, .5, { type: 'sine', vol: .12, to: 40 }); },
+    quake: (t) => { for (let i = 0; i < 6; i++) noise(t + i * .09, .14, { freq: 160, vol: .18, type: 'lowpass' }); tone(55, t, .8, { type: 'sine', vol: .12 }); },
+    flag: (t) => { arp(t, [392, 523, 659, 784, 1047], .1, { type: 'square', vol: .045, dur: .4 }); noise(t + .4, 1, { freq: 6000, to: 2000, vol: .05 }); },
+    win: (t) => { arp(t, [523, 659, 784, 1047], .14, { type: 'triangle', vol: .08, dur: .5 }); arp(t + .62, [784, 1047, 1319], 0, { type: 'triangle', vol: .05, dur: 1.2 }); },
+    lose: (t) => arp(t, [392, 349, 311, 262], .2, { type: 'triangle', vol: .07, dur: .5 }),
+    draw: (t) => arp(t, [440, 440, 523], .16, { type: 'triangle', vol: .06, dur: .4 }),
+    tick: (t) => tone(1500, t, .05, { type: 'square', vol: .025 }),
+    super_duelist: (t) => { arp(t, [523, 659, 784, 1047, 1319, 1568], .05, { type: 'triangle', vol: .06, dur: .5 }); for (let i = 0; i < 5; i++) noise(t + .3 + i * .07, .08, { freq: 5000, vol: .07 }); },
+    super_warrior: (t) => { tone(80, t, 1.1, { type: 'sawtooth', vol: .07, to: 320, attack: .4 }); noise(t, 1.1, { freq: 200, to: 3000, vol: .12, q: .7, attack: .5 }); noise(t + 1.05, .6, { freq: 1200, to: 120, vol: .25, type: 'lowpass' }); tone(110, t + 1.05, .6, { type: 'sine', vol: .14, to: 50 }); },
+    super_seer: (t) => { tone(880, t, 1.4, { type: 'sine', vol: .05, to: 1760, attack: .3 }); tone(1320, t + .15, 1.2, { type: 'sine', vol: .03, to: 660, attack: .3 }); noise(t, 1.3, { freq: 9000, vol: .02, q: 6, attack: .4 }); },
+  };
+  // Calm generative pad in A minor: a few detuned voices under a slow filter.
+  function startMusic() {
+    if (musicOn) return; musicOn = true;
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 900; filter.connect(musicBus);
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain(); lfo.frequency.value = .07; lfoGain.gain.value = 400; lfo.connect(lfoGain).connect(filter.frequency); lfo.start();
+    const chords = [[110, 165, 220, 262], [87.3, 131, 175, 220], [98, 147, 196, 247], [82.4, 123, 165, 208]];
+    let step = 0;
+    const play = () => {
+      if (!musicOn) return;
+      const t = ctx.currentTime;
+      for (const f of chords[step++ % chords.length]) for (const det of [-4, 4]) {
+        const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.012, t + 2); g.gain.linearRampToValueAtTime(0, t + 8.5);
+        o.connect(g).connect(filter); o.start(t); o.stop(t + 8.6);
+      }
+      setTimeout(play, 8000);
+    };
+    play(); musicBus.gain.setTargetAtTime(1, ctx.currentTime, 2);
+  }
+  return {
+    play(name, arg) { if (muted) return; try { init(); S_[name]?.(ctx.currentTime + .01, arg); } catch { /* audio is optional */ } },
+    start() { try { init(); startMusic(); } catch { /* audio is optional */ } },
+    get muted() { return muted; },
+    toggle() { muted = !muted; store.set('hg-muted', muted ? '1' : '0'); if (master) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, .05); return muted; },
+  };
+})();
 
 // ---------- three.js scene ----------
 const canvas = $('c');
@@ -297,7 +414,7 @@ let curMesh = null;
 
 async function revealCard(card) {
   const m = makeCard(card); m.position.set(DECK_X, 0, .05); m.rotation.y = Math.PI; pile.add(m);
-  beep(520, .06, 'triangle');
+  SFX.play('flip');
   await tween(.5, (k) => { m.position.x = DECK_X + (CUR_X - DECK_X) * k; m.position.z = .05 + Math.sin(k * Math.PI) * .7 + k * .02; m.rotation.y = Math.PI * (1 - k); });
   if (curMesh) pile.remove(curMesh);
   curMesh = m;
@@ -305,7 +422,7 @@ async function revealCard(card) {
 async function showActionDraw(card, pi) {
   const human = !S.players[pi].ai;
   const m = makeCard(card, human); m.position.set(DECK_X, 0, .05); m.rotation.y = Math.PI; pile.add(m);
-  beep(880, .12, 'sine', .06); beep(1320, .18, 'sine', .04);
+  SFX.play('draw_action');
   await tween(.45, (k) => { m.position.set(DECK_X * (1 - k), 0, .05 + k * 1.4); m.rotation.y = Math.PI * (1 - k); m.scale.setScalar(1 + k * .25); });
   await sleep(human ? 700 : 350);
   const dy = pi === 0 ? -3 : 4;
@@ -322,13 +439,49 @@ coin.castShadow = true; coin.visible = false; scene.add(coin);
 async function flipCoin(pos, heads) {
   coin.visible = true; coin.position.copy(pos); coin.rotation.set(0, 0, 0);
   const spins = 4 + (Math.random() * 3 | 0), finalX = heads ? 0 : Math.PI;
-  beep(300, .05, 'square', .03);
+  SFX.play('coin_toss'); setTimeout(() => SFX.play('coin_spin'), 120 / SPEED);
   await tween(1.05, (k) => { coin.position.y = pos.y + Math.sin(k * Math.PI) * 2.6; coin.rotation.x = k * (spins * Math.PI * 2 + finalX); }, (k) => k);
-  beep(heads ? 990 : 220, .15, heads ? 'triangle' : 'sawtooth', .05);
+  SFX.play('coin_land'); SFX.play(heads ? 'heads' : 'tails');
   floatText(heads ? 'KOP' : 'MUNT', pos.clone().add(new THREE.Vector3(0, .6, 0)), heads ? '#f2d06e' : '#b8c0d8');
   await sleep(550);
   coin.visible = false;
   return heads;
+}
+
+// ---------- hero emblems ----------
+const heroSprites = [];
+function heroTex(char, owner) {
+  const C = CHARACTERS[char];
+  return canvasTex('hero' + char + owner, 256, 300, (g, w) => {
+    const gr = g.createRadialGradient(w / 2, 120, 10, w / 2, 120, 118);
+    gr.addColorStop(0, C.color); gr.addColorStop(.7, '#141a33'); gr.addColorStop(1, 'rgba(20,26,51,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(w / 2, 120, 118, 0, Math.PI * 2); g.fill();
+    g.lineWidth = 8; g.strokeStyle = PCSS[owner]; g.beginPath(); g.arc(w / 2, 120, 92, 0, Math.PI * 2); g.stroke();
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '100px serif'; g.fillText(C.icon, w / 2, 124);
+    g.font = 'bold 34px system-ui, sans-serif'; g.fillStyle = '#fff'; g.shadowColor = '#000'; g.shadowBlur = 8; g.fillText(C.name, w / 2, 268);
+  });
+}
+const burstRing = new THREE.Mesh(new THREE.RingGeometry(.5, .62, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+burstRing.rotation.x = -Math.PI / 2; scene.add(burstRing);
+const burstLight = new THREE.PointLight(0xffffff, 0, 10); scene.add(burstLight);
+function placeHeroes() {
+  for (const sp of heroSprites) scene.remove(sp);
+  heroSprites.length = 0;
+  S.players.forEach((p, i) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: heroTex(p.char, i), transparent: true, depthWrite: false }));
+    sp.scale.set(1.25, 1.46, 1); sp.position.set(i ? 2.65 : -2.65, 1.05, i ? -3.75 : 3.85); sp.userData.base = sp.position.y;
+    scene.add(sp); heroSprites.push(sp);
+  });
+}
+async function heroBurst(pi) {
+  const sp = heroSprites[pi], C = CHARACTERS[S.players[pi].char]; if (!sp) return;
+  burstRing.material.color.setHex(C.glow); burstLight.color.setHex(C.glow);
+  burstRing.position.set(sp.position.x, .05, sp.position.z); burstLight.position.copy(sp.position);
+  await tween(1.1, (k) => {
+    burstRing.scale.setScalar(1 + k * 9); burstRing.material.opacity = (1 - k) * .9;
+    burstLight.intensity = Math.sin(k * Math.PI) * 60; sp.scale.set(1.25 * (1 + Math.sin(k * Math.PI) * .45), 1.46 * (1 + Math.sin(k * Math.PI) * .45), 1);
+  });
+  burstLight.intensity = 0;
 }
 
 // ---------- board ----------
@@ -389,7 +542,6 @@ function paintTile(t) {
 async function setOwner(t, owner) {
   t.owner = owner; if (owner < 0) t.shield = 0;
   paintTile(t); updateUI();
-  beep(owner < 0 ? 180 : 660, .2, 'triangle', .05);
   await tween(.35, (k) => t.bld.scale.setScalar(1 + Math.sin(k * Math.PI) * .35));
 }
 const tileAt = (c, r) => S.tiles[r * COLS + c];
@@ -404,8 +556,17 @@ function dominance() { const tot = S.tiles.reduce((s, t) => s + t.value, 0); ret
 
 // ---------- game state ----------
 let S = null;
-const mkPlayer = (i, mode) => ({ i, ai: mode === 'ai' && (i === 1 || AUTOPLAY), hand: [], lucky: 0, sabotaged: 0, double: false, equal: false, second: 0,
-  name: i === 0 ? (mode === 'ai' ? 'Jij' : 'Speler 1') : (mode === 'ai' ? 'AI-rivaal' : 'Speler 2') });
+const mkPlayer = (i, mode, char) => ({ i, char, superUsed: false, ki: false, ai: mode === 'ai' && (i === 1 || AUTOPLAY) || (mode === 'remote' && !remoteSeats[i].taken), hand: [], lucky: 0, sabotaged: 0, double: false, equal: false, second: 0,
+  name: CHARACTERS[char].name + ((mode === 'ai' && (i === 1 || AUTOPLAY)) || (mode === 'remote' && !remoteSeats[i].taken) ? ' (AI)' : '') });
+// Fill missing or duplicate picks with a random free hero.
+function resolveChars(picks) {
+  const out = [];
+  for (let i = 0; i < 2; i++) {
+    const c = picks[i];
+    out.push(CHARACTERS[c] && !out.includes(c) ? c : pick(CHAR_IDS.filter((x) => !out.includes(x) && x !== picks[1 - i])));
+  }
+  return out;
+}
 const dead = (id) => !S || S.over || S.turnId !== id;
 const isHumanTurn = () => S && !S.over && !S.players[S.cur].ai;
 
@@ -427,15 +588,18 @@ async function drawPlaying(pi) {
     if (pi == null) { S.discard.push(card); continue; }
     const p = S.players[pi];
     await showActionDraw(card, pi);
-    if (p.hand.length < HAND_MAX) { p.hand.push(card); say(`${p.name} ${p.ai ? 'trekt een actiekaart' : `trekt actiekaart ${ACTIONS[card.id].icon} ${ACTIONS[card.id].name}`}.`); }
+    if (p.hand.length < handMax(p)) { p.hand.push(card); say(`${p.name} ${p.ai ? 'trekt een actiekaart' : `trekt actiekaart ${ACTIONS[card.id].icon} ${ACTIONS[card.id].name}`}.`); }
     else { S.discard.push(card); say(`Hand van ${p.name} is vol: actiekaart afgelegd.`); }
     updateUI();
   }
 }
-function peekNext() {
-  if (!S.deck.some((c) => c.kind === 'play')) { S.deck = shuffle(S.discard.concat(S.deck)); S.discard = []; }
-  for (let i = S.deck.length - 1; i >= 0; i--) if (S.deck[i].kind === 'play') return S.deck[i];
+function peekNext(n = 1) {
+  if (S.deck.filter((c) => c.kind === 'play').length < n) { S.deck = shuffle(S.discard.concat(S.deck)); S.discard = []; }
+  const out = [];
+  for (let i = S.deck.length - 1; i >= 0 && out.length < n; i--) if (S.deck[i].kind === 'play') out.push(S.deck[i]);
+  return out;
 }
+const shiftPeek = () => { S.peek = S.peek2 || null; S.peek2 = null; };
 function probs(rank) {
   let pool = S.deck.filter((c) => c.kind === 'play');
   if (!pool.length) pool = S.discard.filter((c) => c.kind === 'play');
@@ -443,13 +607,16 @@ function probs(rank) {
   return { hi: pool.filter((c) => c.rank > rank).length / n, lo: pool.filter((c) => c.rank < rank).length / n, tie: pool.filter((c) => c.rank === rank).length / n };
 }
 
-async function startGame(mode) {
-  hideOverlay(); tweens.length = 0;
+async function startGame(mode, picks = []) {
+  hideOverlay(); tweens.length = 0; SFX.start(); SFX.play('start');
+  const chars = resolveChars(mode === 'remote' ? remoteChars : picks);
+  document.body.classList.toggle('remote', mode === 'remote'); resize();
   S = { mode, cur: 0, turn: 0, turnId: 0, tokens: 0, claims: 0, phase: 'busy', timeLeft: ROUND_SECONDS, started: false, over: false,
-    players: [mkPlayer(0, mode), mkPlayer(1, mode)], tiles: [], deck: [], discard: [], current: null, peek: null, pending: null, targets: [] };
+    chars, players: [mkPlayer(0, mode, chars[0]), mkPlayer(1, mode, chars[1])], tiles: [], deck: [], discard: [], current: null, peek: null, pending: null, targets: [] };
   if (curMesh) { pile.remove(curMesh); curMesh = null; }
   buildBoard(); buildDeck();
-  for (const p of S.players) { const i = S.deck.findIndex((c) => c.kind === 'action'); p.hand.push(S.deck.splice(i, 1)[0]); }
+  for (const p of S.players) for (let n = p.char === 'duelist' ? 2 : 1; n > 0; n--) { const i = S.deck.findIndex((c) => c.kind === 'action'); p.hand.push(S.deck.splice(i, 1)[0]); }
+  placeHeroes();
   updateUI();
   S.current = await drawPlaying(null); await revealCard(S.current);
   say('Kop of munt: wie begint?');
@@ -465,16 +632,18 @@ async function beginTurn() {
   const d = dominance();
   if (d[S.cur] >= DOM_WIN) return gameOver(S.cur, 'dominance');
   S.phase = S.mode === 'pvp' ? 'pass' : 'busy'; updateUI();
-  if (S.mode === 'pvp') await passScreen(p); else await banner(p.ai ? 'Beurt van de AI-rivaal' : 'Jouw beurt', PCSS[S.cur]);
+  if (S.mode === 'pvp') await passScreen(p);
+  else await banner(p.ai ? 'Beurt van de AI-rivaal' : S.mode === 'remote' ? `Beurt van ${p.name}` : 'Jouw beurt', PCSS[S.cur]);
   if (dead(id)) return;
   S.phase = 'guess'; updateUI();
+  if (!p.ai) SFX.play('turn');
   if (p.ai) aiTurn(id);
 }
 function endTurn() {
   if (S.over) return;
   const p = S.players[S.cur];
   p.double = false; p.equal = false; p.second = 0;
-  S.tokens = 0; S.claims = 0; S.peek = null; S.pending = null; setTargets([]);
+  S.tokens = 0; S.claims = 0; S.peek = null; S.peek2 = null; S.streak = 0; S.pending = null; setTargets([]);
   for (const t of S.tiles) if (t.shield > 0 && t.owner !== S.cur) { t.shield--; paintTile(t); }
   S.cur = 1 - S.cur; S.turn++; S.turnId++;
   beginTurn();
@@ -486,21 +655,24 @@ async function guess(dir) {
   S.phase = 'busy'; updateUI();
   const next = await drawPlaying(S.cur); if (dead(id)) return;
   await revealCard(next); if (dead(id)) return;
-  S.discard.push(prev); S.current = next; S.peek = null;
+  S.discard.push(prev); S.current = next; shiftPeek();
   const tie = next.rank === prev.rank;
-  const right = tie ? p.equal : dir === 'higher' ? next.rank > prev.rank : next.rank < prev.rank;
+  const right = tie ? p.equal || p.char === 'seer' : dir === 'higher' ? next.rank > prev.rank : next.rank < prev.rank;
   const where = pile.localToWorld(new THREE.Vector3(CUR_X, 1.2, .3));
   if (right) {
-    const gain = p.double ? 2 : 1; p.double = false; S.tokens += gain;
-    floatText(`Goed! +${gain} claim${gain > 1 ? 's' : ''}`, where, '#7dffa8'); beep(760, .1, 'triangle'); beep(1140, .14, 'triangle', .04);
+    S.streak = (S.streak || 0) + 1;
+    const powerUp = p.char === 'warrior' && S.streak >= 3;
+    const gain = (p.double ? 2 : 1) + (powerUp ? 1 : 0); p.double = false; S.tokens += gain;
+    floatText(`${powerUp ? '🔥 Power-up! ' : tie ? '👁️ Gelijk = goed! ' : 'Goed! '}+${gain} claim${gain > 1 ? 's' : ''}`, where, powerUp ? '#ffb02e' : '#7dffa8');
+    SFX.play(powerUp ? 'powerup' : 'correct', S.streak);
     say(`${cardLabel(next)}: goed geraden. ${p.name} heeft ${S.tokens} claim${S.tokens > 1 ? 's' : ''}.`);
     S.phase = 'guess'; updateUI(); return;
   }
   if (p.second > 0) {
-    p.second--; floatText('Tweede kans!', where, '#9cf59c'); say(`${cardLabel(next)}: fout, maar de tweede kans redt ${p.name}.`);
+    p.second--; SFX.play('save'); floatText('Tweede kans!', where, '#9cf59c'); say(`${cardLabel(next)}: fout, maar de tweede kans redt ${p.name}.`);
     S.phase = 'guess'; updateUI(); return;
   }
-  floatText(tie ? 'Gelijk = fout' : 'Fout!', where, '#ff7a70'); beep(160, .3, 'sawtooth', .05);
+  floatText(tie ? 'Gelijk = fout' : 'Fout!', where, '#ff7a70'); SFX.play('wrong');
   say(`${cardLabel(next)}: fout geraden${S.tokens ? `, ${S.tokens} claim${S.tokens > 1 ? 's' : ''} verloren` : ''}.`);
   S.tokens = 0; updateUI();
   await sleep(1000); if (dead(id)) return;
@@ -522,7 +694,8 @@ async function attemptClaim(t) {
   say(`${p.name} probeert ${t.flag >= 0 ? 'de VLAG (2× kop nodig!)' : `${TILE_NAMES[t.value].toLowerCase()} (waarde ${t.value})`} te claimen…`);
   for (let i = 0; i < need && ok; i++) {
     let heads = Math.random() < .5;
-    if (p.sabotaged > 0) { p.sabotaged--; heads = false; say('💣 Gesaboteerd! De munt valt verkeerd.'); }
+    if (p.ki) { p.ki = false; heads = true; say('💥 Ki-golf: gegarandeerd kop!'); }
+    else if (p.sabotaged > 0) { p.sabotaged--; heads = false; say('💣 Gesaboteerd! De munt valt verkeerd.'); }
     else if (p.lucky > 0) { p.lucky--; heads = true; say('🪙 Gouden munt: gegarandeerd kop.'); }
     updateUI();
     ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), heads);
@@ -532,9 +705,10 @@ async function attemptClaim(t) {
   if (ok) {
     const stolen = t.owner === 1 - S.cur;
     await setOwner(t, S.cur); if (dead(id)) return;
-    if (t.flag === 1 - S.cur) return gameOver(S.cur, 'flag');
+    if (t.flag === 1 - S.cur) { SFX.play('flag'); return gameOver(S.cur, 'flag'); }
+    SFX.play(stolen ? 'steal' : 'claim');
     say(`${p.name} ${stolen ? 'verovert' : 'claimt'} een ${TILE_NAMES[t.value].toLowerCase()}!`);
-  } else say('Claim mislukt.');
+  } else { say('Claim mislukt.'); SFX.play('fail'); }
   await sleep(300); if (dead(id)) return;
   const ts = claimTargets(S.cur);
   if (S.claims > 0 && ts.length) { S.phase = 'claim'; setTargets(ts); updateUI(); if (p.ai) aiClaim(id); }
@@ -552,6 +726,7 @@ function canPlay(pi, id) {
   if (id === 'quake') return S.tiles.some((t) => t.owner === 1 - pi && t.flag < 0 && t.shield === 0);
   if (id === 'equal') return !p.equal;
   if (id === 'peek') return !S.peek;
+  if (id === 'lucky') return true;
   return true;
 }
 async function playCard(pi, idx, target) {
@@ -564,18 +739,19 @@ async function playCard(pi, idx, target) {
     return;
   }
   p.hand.splice(idx, 1); S.discard.push(card); S.phase = 'busy'; updateUI();
+  SFX.play('cast'); if (card.id === 'sabotage') SFX.play('boom'); if (card.id === 'quake') SFX.play('quake');
   await banner(`${A.icon} ${A.name}`, '#f2d06e', 700);
   if (dead(id)) return;
   say(`${p.name} speelt ${A.icon} ${A.name}.`);
   const opp = S.players[1 - pi];
   switch (card.id) {
     case 'lucky': p.lucky++; break;
-    case 'peek': S.peek = peekNext(); break;
+    case 'peek': S.peek = peekNext(1)[0]; S.peek2 = null; break;
     case 'double': p.double = true; break;
     case 'equal': p.equal = true; break;
     case 'second': p.second++; break;
     case 'sabotage': opp.sabotaged++; break;
-    case 'shield': target.shield = 2; paintTile(target); beep(600, .2, 'sine'); break;
+    case 'shield': target.shield = 2; paintTile(target); SFX.play('shield'); break;
     case 'takeover': await setOwner(target, pi); break;
     case 'quake': {
       const t = pick(S.tiles.filter((x) => x.owner === 1 - pi && x.flag < 0 && x.shield === 0));
@@ -584,19 +760,50 @@ async function playCard(pi, idx, target) {
     }
     case 'swap': {
       const next = await drawPlaying(pi); if (dead(id)) return;
-      await revealCard(next); S.discard.push(S.current); S.current = next; S.peek = null; break;
+      await revealCard(next); S.discard.push(S.current); S.current = next; shiftPeek(); break;
     }
   }
   if (dead(id)) return;
   S.phase = 'guess'; updateUI();
 }
 
+// ---------- hero supers ----------
+const canSuper = (pi) => { const p = S?.players[pi]; return !!p && !p.superUsed && S.cur === pi && S.phase === 'guess' && !S.over; };
+async function useSuper(pi) {
+  if (!canSuper(pi)) return;
+  const p = S.players[pi], C = CHARACTERS[p.char], id = S.turnId;
+  p.superUsed = true; S.phase = 'busy'; updateUI();
+  SFX.play('super_' + p.char); heroBurst(pi);
+  say(`${C.icon} ${p.name}: “${C.shout}”`);
+  await banner(`${C.superIcon} ${C.superName}!`, C.color, 1100);
+  if (dead(id)) return;
+  if (p.char === 'duelist') {
+    let got = 0;
+    for (let i = S.deck.length - 1; i >= 0 && got < 2; i--) if (S.deck[i].kind === 'action') {
+      const [card] = S.deck.splice(i, 1); got++;
+      await showActionDraw(card, pi); if (dead(id)) return;
+      if (p.hand.length < handMax(p)) p.hand.push(card); else S.discard.push(card);
+      updateUI();
+    }
+    say(got ? `${p.name} trekt ${got} actiekaart${got > 1 ? 'en' : ''} met Kaartenregen.` : 'Er zitten geen actiekaarten meer in de stapel.');
+  } else if (p.char === 'warrior') p.ki = true;
+  else { [S.peek, S.peek2] = peekNext(2); }
+  S.phase = 'guess'; updateUI();
+}
+
 // ---------- AI ----------
+function aiSuper(p, pr) {
+  if (p.superUsed) return false;
+  if (p.char === 'duelist') return p.hand.length <= 2 && S.turn >= 2;
+  if (p.char === 'seer') return !S.peek && aiBest(p, pr) < .66;
+  // warrior: save the ki blast for an attack on the flag
+  return S.tokens > 0 && !aiContinue(p, pr) && claimTargets(p.i).some((t) => t.flag === 1 - p.i);
+}
 function aiDir(pr) { return S.peek ? (S.peek.rank >= S.current.rank ? 'higher' : 'lower') : pr.hi >= pr.lo ? 'higher' : 'lower'; }
-function aiBest(p, pr) { return Math.max(pr.hi, pr.lo) + (p.equal ? pr.tie : 0); }
+function aiBest(p, pr) { return Math.max(pr.hi, pr.lo) + (p.equal || p.char === 'seer' ? pr.tie : 0); }
 function aiContinue(p, pr) {
   if (S.tokens === 0) return true;
-  if (S.peek) return S.peek.rank !== S.current.rank || p.equal;
+  if (S.peek) return S.peek.rank !== S.current.rank || p.equal || p.char === 'seer';
   const best = aiBest(p, pr);
   if (p.second > 0) return best > .45 && S.tokens < 4;
   return (S.tokens < 2 && best >= .62) || (S.tokens < 3 && best >= .75) || best >= .9;
@@ -635,6 +842,7 @@ async function aiTurn(id) {
   await sleep(700);
   while (!dead(id) && S.phase === 'guess') {
     const p = S.players[S.cur], pr = probs(S.current.rank);
+    if (aiSuper(p, pr)) { await sleep(400); if (dead(id)) return; await useSuper(p.i); await sleep(500); continue; }
     const play = aiChooseCard(p, pr);
     if (play) { await sleep(400); if (dead(id)) return; await playCard(S.cur, play.idx, play.target); await sleep(450); continue; }
     if (!aiContinue(p, pr)) { await sleep(500); if (!dead(id)) cashIn(); return; }
@@ -664,16 +872,18 @@ function gameOver(winner, reason) {
   const d = dominance().map((x) => Math.round(x * 100));
   const why = { flag: 'De vijandelijke vlag is veroverd!', dominance: `Dominance van ${Math.round(DOM_WIN * 100)}% bereikt.`, time: 'De 10 minuten zijn om: de meeste vastgoedwaarde wint.' }[reason];
   const title = winner < 0 ? 'Gelijkspel' : S.mode === 'ai' ? (winner === 0 ? 'Je wint!' : 'De AI-rivaal wint') : `${S.players[winner].name} wint!`;
-  if (winner === 0 || (S.mode === 'pvp' && winner >= 0)) [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, .25, 'triangle', .06), i * 140));
+  S.result = { title, why, winner };
+  SFX.play(winner < 0 ? 'draw' : (S.mode === 'ai' && winner === 1) ? 'lose' : 'win');
   const used = ROUND_SECONDS - Math.max(0, S.timeLeft);
   showOverlay(`<h2 style="color:${winner < 0 ? '#fff' : PCSS[winner]}">${title}</h2><p>${why}</p>
     <ul><li>Dominance: ${S.players[0].name} ${d[0]}% · ${S.players[1].name} ${d[1]}%</li>
     <li>Speeltijd: ${Math.floor(used / 60)}:${String(Math.floor(used % 60)).padStart(2, '0')} · ${S.turn + 1} beurten</li></ul>
-    <div class="btns"><button data-mode="${S.mode}">Nog een ronde</button><button class="alt" data-menu>Menu</button></div>`);
+    <div class="btns"><button data-again>Nog een ronde</button><button class="alt" data-menu>Menu</button></div>`);
+  pushRemote();
 }
 
 // ---------- UI ----------
-function say(t) { $('msg').textContent = t; }
+function say(t) { $('msg').textContent = t; pushRemote(); }
 let bannerTimer;
 async function banner(text, color = '#fff', ms = 900) {
   const b = $('banner'); b.textContent = text; b.style.color = color; b.style.opacity = 1;
@@ -711,7 +921,9 @@ function updateUI() {
   for (const p of S.players) {
     const el = $('p' + p.i + 'info'), tiles = S.tiles.filter((t) => t.owner === p.i).length;
     el.classList.toggle('active', S.cur === p.i && !S.over);
-    el.innerHTML = `<div class="nm">${p.name} ${statusIcons(p)}</div><div class="st">🏠 ${tiles} · ⭐ ${ownedValue(p.i)} · ${Math.round(d[p.i] * 100)}% · 🂠 ${p.hand.length}</div>`;
+    const off = S.mode === 'remote' && !p.ai && !remoteSeats[p.i].online ? ' 📵' : '';
+    const C = CHARACTERS[p.char];
+    el.innerHTML = `<div class="nm">${C.icon} ${p.name}${off} ${p.superUsed ? '' : `<span title="${C.superName} nog beschikbaar">${C.superIcon}</span>`} ${statusIcons(p)}</div><div class="st">🏠 ${tiles} · ⭐ ${ownedValue(p.i)} · ${Math.round(d[p.i] * 100)}% · 🂠 ${p.hand.length}</div>`;
   }
   $('dom0').style.width = d[0] * 100 + '%'; $('dom1').style.width = d[1] * 100 + '%';
   const tl = Math.max(0, S.timeLeft);
@@ -723,13 +935,18 @@ function updateUI() {
   $('bCash').disabled = !(guessing && S.tokens > 0);
   $('bCash').textContent = S.phase === 'claim' ? `Kies vakje (${S.claims})` : `Claim vastgoed (${S.tokens})`;
   $('bCancel').style.display = human && S.phase === 'target' ? 'block' : 'none';
+  const sc = CHARACTERS[S.players[S.cur].char];
+  $('bSuper').textContent = `${sc.superIcon} ${sc.superName}`; $('bSuper').title = sc.superText;
+  $('bSuper').style.setProperty('--sc', sc.color);
+  $('bSuper').disabled = !(human && S.mode !== 'remote' && canSuper(S.cur));
+  $('bSuper').style.display = human && !S.players[S.cur].superUsed ? '' : 'none';
   $('tokens').textContent = S.tokens ? '★'.repeat(Math.min(S.tokens, 6)) : S.current ? cardLabel(S.current) : '';
   $('peek').textContent = human && S.peek ? `🔭 Volgende kaart: ${cardLabel(S.peek)}` : '';
   if (guessing) say(S.tokens === 0
     ? `Is de volgende kaart hoger of lager dan ${cardLabel(S.current)}?`
     : `${S.tokens} claim${S.tokens > 1 ? 's' : ''}! Raad verder (risico) of claim vastgoed. Open kaart: ${cardLabel(S.current)}.`);
   else if (human && S.phase === 'claim') say(`Kies een oplichtend vakje om te claimen (${S.claims} over). ${canAttackFlag(S.cur) ? 'Vlag = 2× kop.' : 'Vlag 🔒 tot je meer vastgoedwaarde hebt.'}`);
-  renderHand();
+  renderHand(); pushRemote();
 }
 function renderHand() {
   const hand = $('hand'); hand.innerHTML = '';
@@ -755,26 +972,69 @@ const RULES = `<ul>
   <li><b>Capture the flag:</b> de vijandelijke vlag kun je alleen aanvallen als jij meer vastgoedwaarde hebt dan je tegenstander. Daarna is 2× kop achter elkaar nodig. Verover hem en je wint direct.</li>
   <li><b>Dominance:</b> huis = 1, winkel = 2, toren = 3. Bezit je bij de start van je beurt ${Math.round(DOM_WIN * 100)}% van alle waarde, dan win je.</li>
   <li><b>Actiekaarten:</b> 15 actiekaarten zitten in de stapel. Trek je er een, dan gaat hij naar je hand (max ${HAND_MAX}). Speel ze tijdens je beurt.</li>
+  <li><b>Helden:</b> 🃏 Kaito de Duellist (extra actiekaarten), 🔥 Raiden de Ki-krijger (power-up bij lange reeksen) en 👁️ Mira de Zienster (gelijk telt als goed). Elke held heeft één super per ronde.</li>
   <li><b>Tijd:</b> een ronde duurt maximaal 10 minuten. Daarna wint de hoogste vastgoedwaarde.</li></ul>`;
+function heroCards(taken, mine) {
+  return `<div class="heroes">${CHAR_IDS.map((id) => { const C = CHARACTERS[id];
+    return `<button class="hero" style="--hc:${C.color}" data-char="${id}" ${taken.includes(id) && id !== mine ? 'disabled' : ''}>
+      <div class="hi">${C.icon}</div><div class="hn">${C.name}</div><div class="ht">${C.title}</div>
+      <div class="hp"><b>Passief:</b> ${C.passive}</div><div class="hs"><b>${C.superIcon} ${C.superName} (1×):</b> ${C.superText}</div></button>`; }).join('')}</div>`;
+}
+let charSelect = null;
+function showCharSelect(mode, picks = []) {
+  charSelect = { mode, picks };
+  const who = mode === 'ai' ? 'Kies je held' : `Speler ${picks.length + 1}: kies je held`;
+  showOverlay(`<h2 style="color:${PCSS[picks.length]}">${who}</h2>
+    <p>Geïnspireerd op kaartduels en ki-gevechten. Elke held heeft een passieve kracht en één super per ronde.</p>
+    ${heroCards(picks, null)}<div class="btns"><button class="alt" data-menu>Terug</button></div>`);
+}
+function onCharPicked(id) {
+  if (!charSelect) return;
+  const { mode, picks } = charSelect; picks.push(id);
+  SFX.play('super_' + id);
+  if (mode === 'pvp' && picks.length < 2) showCharSelect(mode, picks);
+  else { charSelect = null; startGame(mode, picks); }
+}
+
 function showMenu() {
   showOverlay(`<h1>HIGHER GROUND</h1><p style="margin:0;font-size:11px;color:#6f789a">v${VERSION}</p><p>Raad hoger of lager, win de muntworp en verover de vlag.</p>${RULES}
-    <div class="btns"><button data-mode="ai">Speel tegen de AI</button><button class="alt" data-mode="pvp">2 spelers (zelfde scherm)</button></div>`);
+    <div class="btns"><button data-mode="ai">Speel tegen de AI</button>${REMOTE ? '<button data-lobby>Spelen met telefoons</button>' : ''}<button class="alt" data-mode="pvp">2 spelers (zelfde scherm)</button></div>
+    ${REMOTE ? '' : '<p style="font-size:12px;color:#8891b0">Spelen met telefoons? Start de server met <code>node server.mjs</code> en open het adres dat hij toont.</p>'}`);
+  document.body.classList.remove('remote'); resize();
+  if (S?.mode === 'remote') { S.over = true; S = null; }
+  pushLobby();
 }
 $('overlay').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.mode) startGame(b.dataset.mode);
+  if (b.dataset.char) onCharPicked(b.dataset.char);
+  else if (b.dataset.mode) b.dataset.mode === 'remote' ? startGame('remote') : showCharSelect(b.dataset.mode);
+  else if (b.hasAttribute('data-again')) startGame(S.mode, S.chars);
   else if (b.hasAttribute('data-menu')) showMenu();
+  else if (b.hasAttribute('data-lobby')) showLobby();
+  else if (b.hasAttribute('data-reset')) fetch('/reset', { method: 'POST' });
   else if (b.hasAttribute('data-close')) hideOverlay();
 });
 $('help').onclick = () => showOverlay(`<h2>Spelregels</h2>${RULES}<div class="btns"><button data-close>Verder spelen</button><button class="alt" data-menu>Stoppen en naar menu</button></div>`);
-$('bHigher').onclick = () => isHumanTurn() && guess('higher');
-$('bLower').onclick = () => isHumanTurn() && guess('lower');
-$('bCash').onclick = () => isHumanTurn() && cashIn();
-$('bCancel').onclick = () => { if (S?.phase === 'target') { S.phase = 'guess'; S.pending = null; setTargets([]); updateUI(); } };
+// In phone mode the display only shows the game; all input comes from the phones.
+const localInput = () => isHumanTurn() && S.mode !== 'remote';
+$('bHigher').onclick = () => localInput() && guess('higher');
+$('bLower').onclick = () => localInput() && guess('lower');
+$('bCash').onclick = () => localInput() && cashIn();
+$('bSuper').onclick = () => localInput() && useSuper(S.cur);
+$('mute').textContent = SFX.muted ? '🔇' : '🔊';
+$('mute').onclick = () => { $('mute').textContent = SFX.toggle() ? '🔇' : '🔊'; };
+document.addEventListener('click', (e) => { if (e.target.closest('button')) SFX.play('click'); }, true);
+function cancelTarget() { if (S?.phase === 'target') { S.phase = 'guess'; S.pending = null; setTargets([]); updateUI(); } }
+$('bCancel').onclick = () => localInput() && cancelTarget();
+function chooseTile(t) {
+  if (!t || !S.targets.includes(t)) return;
+  if (S.phase === 'claim') attemptClaim(t);
+  else if (S.phase === 'target') { const idx = S.pending; S.pending = null; S.phase = 'guess'; setTargets([]); playCard(S.cur, idx, t); }
+}
 addEventListener('keydown', (e) => {
-  if (!isHumanTurn()) return;
+  if (!localInput()) return;
   if (e.key === 'ArrowUp') guess('higher'); else if (e.key === 'ArrowDown') guess('lower');
-  else if (e.key === 'Enter' || e.key === ' ') cashIn(); else if (e.key === 'Escape') $('bCancel').onclick();
+  else if (e.key === 'Enter' || e.key === ' ') cashIn(); else if (e.key === 's' || e.key === 'S') useSuper(S.cur); else if (e.key === 'Escape') $('bCancel').onclick();
 });
 
 // ---------- picking ----------
@@ -785,15 +1045,10 @@ function tileFromEvent(e) {
   ray.setFromCamera(ndc, camera);
   return ray.intersectObjects(hitMeshes)[0]?.object.userData.tile ?? null;
 }
-canvas.addEventListener('pointerdown', (e) => {
-  if (!isHumanTurn()) return;
-  const t = tileFromEvent(e); if (!t || !S.targets.includes(t)) return;
-  if (S.phase === 'claim') attemptClaim(t);
-  else if (S.phase === 'target') { const idx = S.pending; S.pending = null; S.phase = 'guess'; setTargets([]); playCard(S.cur, idx, t); }
-});
+canvas.addEventListener('pointerdown', (e) => { if (localInput()) chooseTile(tileFromEvent(e)); });
 canvas.addEventListener('pointermove', (e) => {
   const tip = $('tip'), t = S && e.pointerType === 'mouse' ? tileFromEvent(e) : null;
-  canvas.style.cursor = t && S.targets.includes(t) && isHumanTurn() ? 'pointer' : 'default';
+  canvas.style.cursor = t && S.targets.includes(t) && localInput() ? 'pointer' : 'default';
   if (!t) { tip.style.display = 'none'; return; }
   const own = t.owner < 0 ? 'neutraal' : S.players[t.owner].name;
   const lock = t.flag >= 0 && t.flag !== S.cur && !canAttackFlag(S.cur) ? ' · 🔒 eerst meer vastgoedwaarde nodig' : '';
@@ -803,7 +1058,7 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerleave', () => { $('tip').style.display = 'none'; });
 
 // ---------- loop ----------
-let elapsed = 0, uiTick = 0, lastStep = performance.now();
+let elapsed = 0, uiTick = 0, remoteTick = 0, lastSec = 0, lastStep = performance.now();
 // Game logic advances with real time; requestAnimationFrame drives it normally and the interval keeps
 // tweens and the round clock going when the browser throttles animation frames.
 function step() {
@@ -821,9 +1076,16 @@ function step() {
       }
       if (t.shield) t.dome.material.opacity = .22 + Math.sin(elapsed * 3) * .06;
     }
+    heroSprites.forEach((sp, i) => {
+      const active = S.cur === i && !S.over;
+      sp.position.y = sp.userData.base + (active ? Math.sin(elapsed * 3) * .08 : 0);
+      sp.material.opacity = active || !S.started ? 1 : .55;
+    });
     if (S.started && !S.over) {
       S.timeLeft -= dt;
-      if ((uiTick += dt) > .25) { uiTick = 0; $('timer').textContent = `${Math.floor(Math.max(0, S.timeLeft) / 60)}:${String(Math.floor(Math.max(0, S.timeLeft) % 60)).padStart(2, '0')}`; $('timer').classList.toggle('low', S.timeLeft < 60); }
+      const sec = Math.ceil(S.timeLeft);
+      if (sec !== lastSec) { lastSec = sec; if (sec <= 10 && sec > 0) SFX.play('tick'); }
+      if ((uiTick += dt) > .25) { uiTick = 0; if ((remoteTick += .25) >= 1) { remoteTick = 0; pushRemote(); } $('timer').textContent = `${Math.floor(Math.max(0, S.timeLeft) / 60)}:${String(Math.floor(Math.max(0, S.timeLeft) % 60)).padStart(2, '0')}`; $('timer').classList.toggle('low', S.timeLeft < 60); }
       if (S.timeLeft <= 0) timeUp();
     }
   }
@@ -831,8 +1093,84 @@ function step() {
 }
 function frame() { step(); requestAnimationFrame(frame); }
 setInterval(() => { if (performance.now() - lastStep > 200) step(); }, 100);
+// ---------- phones as controllers (server.mjs) ----------
+function remoteState(seat) {
+  if (!S) return { lobby: true };
+  const p = S.players[seat], mine = S.cur === seat && !S.over && !p.ai;
+  return {
+    seat, name: p.name, opp: S.players[1 - seat].name, cur: S.cur, curName: S.players[S.cur].name, myTurn: mine, phase: S.phase,
+    card: S.current && { label: cardLabel(S.current), red: S.current.suit === 1 || S.current.suit === 2 },
+    tokens: S.tokens, claims: S.claims, msg: $('msg').textContent, peek: mine && S.peek ? cardLabel(S.peek) : '',
+    hand: p.hand.map((c) => ({ id: c.id, name: ACTIONS[c.id].name, icon: ACTIONS[c.id].icon, text: ACTIONS[c.id].text,
+      playable: mine && S.phase === 'guess' && canPlay(seat, c.id) })),
+    tiles: S.tiles.map((t) => ({ o: t.owner, v: t.value, f: t.flag, s: t.shield, t: mine && S.targets.includes(t) })),
+    canGuess: mine && S.phase === 'guess', canCash: mine && S.phase === 'guess' && S.tokens > 0, canCancel: mine && S.phase === 'target',
+    timeLeft: Math.max(0, Math.round(S.timeLeft)), dom: dominance().map((x) => Math.round(x * 100)), status: statusIcons(p),
+    over: S.over, result: S.result || null,
+    hero: { id: p.char, ...CHARACTERS[p.char], glow: undefined }, superUsed: p.superUsed, canSuper: mine && canSuper(seat),
+  };
+}
+let pushTimer = null;
+function pushRemote() {
+  if (!REMOTE || S?.mode !== 'remote' || pushTimer) return;
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    if (S?.mode !== 'remote') return;
+    fetch('/state', { method: 'POST', body: JSON.stringify({ seats: [remoteState(0), remoteState(1)] }) }).catch(() => {});
+  }, 40);
+}
+let remoteChars = [null, null];
+function pushLobby() {
+  if (!REMOTE) return;
+  const heroes = CHAR_IDS.map((id) => ({ id, ...CHARACTERS[id], glow: undefined }));
+  fetch('/state', { method: 'POST', body: JSON.stringify({ seats: [0, 1].map((seat) => ({ lobby: true, seat, chars: remoteChars, heroes })) }) }).catch(() => {});
+}
+function handleRemote(c) {
+  if (c.a === 'restart') { if (S?.mode === 'remote' && S.over) startGame('remote'); return; }
+  if (c.a === 'char') {
+    if (S?.mode === 'remote' && !S.over) return;
+    if (CHARACTERS[c.hero] && remoteChars[1 - c.seat] !== c.hero) { remoteChars[c.seat] = c.hero; SFX.play('super_' + c.hero); renderSeats(); pushLobby(); }
+    return;
+  }
+  if (c.a === 'super') { if (S?.mode === 'remote' && c.seat === S.cur && !S.players[c.seat].ai) useSuper(c.seat); return; }
+  if (!S || S.over || S.mode !== 'remote' || c.seat !== S.cur || S.players[c.seat].ai) return;
+  if (c.a === 'guess') guess(c.dir === 'lower' ? 'lower' : 'higher');
+  else if (c.a === 'cash') cashIn();
+  else if (c.a === 'play') playCard(c.seat, c.idx | 0);
+  else if (c.a === 'cancel') cancelTarget();
+  else if (c.a === 'tile') chooseTile(S.tiles[c.i | 0]);
+}
+let remoteInfo = { urls: [] };
+async function showLobby() {
+  try { remoteInfo = await (await fetch('/info')).json(); } catch { /* server unreachable: lobby shows no address */ }
+  showOverlay(`<h2>Spelen met telefoons</h2><p>Deze pc is het speelbord. Verbind beide telefoons met hetzelfde wifi-netwerk en open:</p>
+    <div class="lobby"><div class="qr" id="qr"></div><div><div class="url">${remoteInfo.urls[0] || 'geen netwerkadres gevonden'}</div>
+    ${remoteInfo.urls.slice(1).map((u) => `<div class="url" style="font-size:12px;opacity:.7">${u}</div>`).join('')}
+    <div id="seats"></div></div></div>
+    <p style="font-size:12px;color:#8891b0">Iedere speler kiest een held op de eigen telefoon. Een stoel zonder telefoon wordt door de AI gespeeld.</p>
+    <div class="btns"><button id="goRemote" data-mode="remote">Start</button><button class="alt" data-reset>Stoelen vrijgeven</button><button class="alt" data-menu>Terug</button></div>`);
+  renderSeats(); pushLobby();
+  if (remoteInfo.urls[0]) {
+    window.qrcode || await new Promise((res) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'; sc.onload = sc.onerror = res; document.head.append(sc); });
+    if (window.qrcode && $('qr')) { const q = qrcode(0, 'M'); q.addData(remoteInfo.urls[0]); q.make(); $('qr').innerHTML = q.createSvgTag({ margin: 0, scalable: true }); }
+  }
+}
+function renderSeats() {
+  const el = $('seats'); if (!el) return;
+  el.innerHTML = remoteSeats.map((s, i) => { const C = CHARACTERS[remoteChars[i]];
+    return `<div class="seat ${s.online ? 'on' : ''}" style="color:${PCSS[i]}">Speler ${i + 1} (${i ? 'rood' : 'blauw'}): <span style="color:#eef1ff">${s.online ? '📱 verbonden' : s.taken ? '⚠️ verbinding weg' : 'wacht op telefoon… (anders AI)'}${C ? ` · ${C.icon} ${C.name}` : s.taken ? ' · kiest een held…' : ''}</span></div>`; }).join('');
+  const n = remoteSeats.filter((s) => s.taken).length;
+  $('goRemote').disabled = n === 0; $('goRemote').textContent = n === 2 ? 'Start: 2 spelers' : n === 1 ? 'Start: telefoon tegen AI' : 'Wacht op een telefoon…';
+}
+if (REMOTE) {
+  const es = new EventSource('/events?role=display');
+  es.addEventListener('seats', (e) => { remoteSeats = JSON.parse(e.data); renderSeats(); if (S?.mode === 'remote') updateUI(); });
+  es.addEventListener('cmd', (e) => handleRemote(JSON.parse(e.data)));
+  es.addEventListener('joined', () => (S?.mode === 'remote' ? pushRemote() : pushLobby()));
+}
+
 resize(); showMenu(); frame();
-window.__hg = { get state() { return S; }, guess, cashIn, playCard };
+window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame };
 </script>
 </body>
 </html>

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>Higher Ground controller</title>
+<style>
+  :root { --bg: #0b1020; --panel: #121a33; --line: rgba(255,255,255,.12); --text: #eef1ff; --muted: #9aa3c4;
+    --p0: #3fa9ff; --p1: #ff5a4f; --gold: #e8c25a; --me: var(--p0); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  body.seat1 { --me: var(--p1); }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  button:disabled { opacity: .35; cursor: default; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+  .hidden { display: none !important; }
+
+  header { display: flex; align-items: center; gap: 10px; }
+  header .me { font-weight: 800; color: var(--me); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header .time { font-weight: 800; font-variant-numeric: tabular-nums; }
+  header .time.low { color: var(--p1); }
+  .dom { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: #3a4155; }
+  .dom .a { background: var(--p0); } .dom .n { flex: 1; } .dom .b { background: var(--p1); }
+  .domlbl { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -4px; }
+
+  .turn { text-align: center; font-weight: 900; font-size: 20px; padding: 8px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+  .turn.mine { background: var(--me); color: #071022; border-color: transparent; animation: glow 1.6s ease-in-out infinite; }
+  @keyframes glow { 50% { filter: brightness(1.15); } }
+  .msg { text-align: center; color: #c8cee6; min-height: 2.7em; font-size: 14px; }
+
+  .table { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .card { width: 74px; height: 104px; border-radius: 9px; background: #fbf8f0; color: #15161c; display: flex; align-items: center;
+    justify-content: center; font: 800 28px Georgia, serif; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+  .card.red { color: #c8202f; }
+  .tokens { color: var(--gold); font-weight: 900; font-size: 20px; text-align: center; min-width: 80px; }
+  .tokens small { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+  .peek { text-align: center; color: var(--gold); font-weight: 800; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions button { padding: 16px 8px; border-radius: 14px; font-weight: 900; font-size: 20px; background: #2a3350; }
+  .actions .cash { grid-column: 1 / -1; background: linear-gradient(#f2d06e, #c99a2c); color: #2a1b00; font-size: 17px; padding: 14px; }
+  .actions .super { grid-column: 1 / -1; background: linear-gradient(135deg, var(--hc, #b07cff), #2a3350); font-size: 17px; padding: 14px; }
+  .heroes { display: flex; flex-direction: column; gap: 8px; }
+  .hero { border-radius: 14px; padding: 10px 12px; text-align: left; background: #1b2442; border: 2px solid var(--hc);
+    display: grid; grid-template-columns: 52px 1fr; gap: 2px 10px; align-items: center; }
+  .hero.sel { background: color-mix(in srgb, var(--hc) 28%, #1b2442); box-shadow: 0 0 0 3px var(--hc); }
+  .hero .hi { font-size: 38px; grid-row: span 3; text-align: center; filter: drop-shadow(0 0 8px var(--hc)); }
+  .hero .hn { font-weight: 900; color: var(--hc); } .hero .hn small { color: var(--muted); font-weight: 600; }
+  .hero .hp, .hero .hs { font-size: 12px; } .hero .hs { color: #f2d06e; }
+  .heroline { font-size: 12px; color: var(--muted); text-align: center; }
+  .actions .cancel { grid-column: 1 / -1; background: #533; font-size: 15px; padding: 12px; }
+
+  h3 { margin: 4px 0 -4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; width: min(100%, 290px); margin: 0 auto; }
+  .tile { aspect-ratio: 1; border-radius: 7px; background: #3c4250; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; position: relative; border: 2px solid transparent; padding: 0; }
+  .tile:disabled { opacity: 1; }
+  .tile.o0 { background: #1f5f99; } .tile.o1 { background: #99332d; }
+  .tile .v { position: absolute; right: 3px; bottom: 1px; font-size: 10px; font-weight: 800; color: rgba(255,255,255,.75); }
+  .tile .sh { position: absolute; left: 2px; top: 0; font-size: 12px; }
+  .tile.t { border-color: var(--gold); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 3px rgba(232,194,90,.45); } }
+
+  .hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .hcard { border: 2px solid var(--gold); border-radius: 12px; padding: 8px; text-align: left; background: linear-gradient(#2a1650, #120a2a);
+    display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; }
+  .hcard .ic { font-size: 26px; grid-row: span 2; }
+  .hcard b { font-size: 13px; } .hcard small { font-size: 11px; color: #c9c2e6; grid-column: 2; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; }
+
+  .join { text-align: center; padding-top: 6vh; }
+  .join h1 { font-size: 30px; letter-spacing: 2px; margin: 0 0 4px; background: linear-gradient(90deg, var(--p0), var(--gold), var(--p1));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .join .seatbtn { display: block; width: 100%; padding: 18px; border-radius: 14px; font-weight: 900; font-size: 18px; margin: 12px 0; color: #071022; }
+  .join .s0 { background: var(--p0); } .join .s1 { background: var(--p1); }
+  .result { text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .result h2 { margin: 0 0 6px; }
+  .result button { margin-top: 10px; width: 100%; padding: 14px; border-radius: 12px; font-weight: 900; background: linear-gradient(#f2d06e, #c99a2c); color: #2a1b00; }
+  .foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+  .foot button { background: none; color: var(--muted); text-decoration: underline; padding: 4px; }
+  .conn { font-size: 12px; text-align: center; color: var(--p1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="join" class="join">
+    <h1>HIGHER GROUND</h1>
+    <p style="color:var(--muted)">Kies je kleur. De pc toont het bord, jij speelt hier.</p>
+    <button class="seatbtn s0" data-seat="0">Speler 1 · blauw</button>
+    <button class="seatbtn s1" data-seat="1">Speler 2 · rood</button>
+    <p id="joinNote" class="empty"></p>
+  </section>
+
+  <section id="game" class="hidden">
+    <header><div class="me" id="me"></div><div id="status"></div><div class="time" id="time">10:00</div></header>
+    <div class="dom"><div class="a" id="domA"></div><div class="n"></div><div class="b" id="domB"></div></div>
+    <div class="domlbl"><span id="domAl"></span><span id="domBl"></span></div>
+    <div class="conn hidden" id="conn">Verbinding met de pc kwijt, opnieuw verbinden…</div>
+    <div class="turn" id="turn">Wachten tot het spel start…</div>
+    <div id="heroPick" class="hidden"><h3 style="margin-bottom:8px">Kies je held</h3><div class="heroes" id="heroes"></div></div>
+    <div class="heroline" id="heroLine"></div>
+    <div class="result hidden" id="result"></div>
+    <div class="msg" id="msg"></div>
+    <div class="table" id="tableRow">
+      <div class="card" id="card">?</div>
+      <div class="tokens" id="tokens">0<small>claims</small></div>
+    </div>
+    <div class="peek" id="peek"></div>
+    <div class="actions" id="actions">
+      <button id="bLower">▼ Lager</button>
+      <button id="bHigher">▲ Hoger</button>
+      <button class="cash" id="bCash">Claim vastgoed</button>
+      <button class="super hidden" id="bSuper">Super</button>
+      <button class="cancel hidden" id="bCancel">Annuleer kaart</button>
+    </div>
+    <div id="ingame">
+    <h3>Bord <span id="boardHint" style="text-transform:none;letter-spacing:0"></span></h3>
+    <div class="board" id="board"></div>
+    <h3>Jouw actiekaarten</h3>
+    <div class="hand" id="hand"></div>
+    </div>
+    <div class="foot"><span id="seatLbl"></span><button id="leave">Andere kleur kiezen</button></div>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } } };
+let myId = store.get('hg-id');
+if (!myId) { myId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('hg-id', myId); }
+// Small synthesised sounds on the phone itself (the PC plays the full soundtrack).
+let actx = null;
+function sfx(notes, type = 'triangle', vol = .07) {
+  try {
+    actx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    notes.forEach(([f, at, dur]) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + at;
+      o.type = type; o.frequency.value = f; g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + .02);
+    });
+  } catch { /* audio is optional */ }
+}
+const buzz = (p) => { try { navigator.vibrate?.(p); } catch { /* optional */ } };
+document.addEventListener('click', (e) => { if (e.target.closest('button:not(:disabled)')) sfx([[1100, 0, .04]], 'square', .03); }, true);
+let seat = null, es = null, state = null, busy = false, wasMyTurn = false, wasOver = false;
+const ICON = { 1: '🏠', 2: '🏪', 3: '🏢' };
+
+async function refreshSeats() {
+  try {
+    const info = await (await fetch('/info')).json();
+    document.querySelectorAll('[data-seat]').forEach((b) => {
+      const s = info.seats[b.dataset.seat];
+      b.disabled = s.online && store.get('hg-seat') !== b.dataset.seat;
+      b.textContent = `Speler ${+b.dataset.seat + 1} · ${b.dataset.seat === '0' ? 'blauw' : 'rood'}${b.disabled ? ' (bezet)' : ''}`;
+    });
+  } catch { $('joinNote').textContent = 'Kan de pc niet bereiken. Zit je op hetzelfde wifi-netwerk?'; }
+}
+function join(s) {
+  seat = s; store.set('hg-seat', String(s));
+  document.body.classList.toggle('seat1', s === 1);
+  es?.close();
+  es = new EventSource(`/events?role=player&seat=${s}&id=${encodeURIComponent(myId)}`);
+  es.addEventListener('joined', () => { $('join').classList.add('hidden'); $('game').classList.remove('hidden'); $('conn').classList.add('hidden'); });
+  es.addEventListener('state', (e) => { state = JSON.parse(e.data); busy = false; render(); });
+  es.addEventListener('taken', () => { es.close(); showJoin('Die kleur is al bezet door een andere telefoon.'); });
+  es.addEventListener('kicked', () => { es.close(); store.set('hg-seat', ''); showJoin('De stoelen zijn vrijgegeven op de pc. Kies opnieuw.'); });
+  es.onerror = () => { if (!$('game').classList.contains('hidden')) $('conn').classList.remove('hidden'); };
+  $('seatLbl').textContent = `Speler ${s + 1} · ${s ? 'rood' : 'blauw'}`;
+}
+function showJoin(note) {
+  seat = null; $('game').classList.add('hidden'); $('join').classList.remove('hidden');
+  $('joinNote').textContent = note || ''; refreshSeats();
+}
+async function cmd(a, extra = {}) {
+  if (busy || seat == null) return;
+  busy = true; render();
+  try { await fetch('/cmd', { method: 'POST', body: JSON.stringify({ seat, id: myId, a, ...extra }) }); } catch { busy = false; render(); }
+  setTimeout(() => { if (busy) { busy = false; render(); } }, 2500); // never lock the buttons if the display ignores a tap
+}
+
+function render() {
+  const s = state; if (!s) return;
+  $('heroPick').classList.toggle('hidden', !s.lobby); $('ingame').classList.toggle('hidden', !!s.lobby);
+  if (s.lobby) {
+    const mine = s.chars?.[seat], other = s.chars?.[1 - seat];
+    $('me').textContent = `Speler ${seat + 1}`; $('turn').className = 'turn';
+    $('turn').textContent = mine ? 'Klaar! Wachten tot het spel start op de pc…' : 'Kies je held hieronder';
+    $('heroLine').textContent = '';
+    const box = $('heroes'); box.innerHTML = '';
+    for (const h of s.heroes || []) {
+      const b = document.createElement('button');
+      b.className = 'hero' + (h.id === mine ? ' sel' : ''); b.style.setProperty('--hc', h.color);
+      b.disabled = h.id === other;
+      b.innerHTML = `<span class="hi">${h.icon}</span><span class="hn">${h.name} <small>· ${h.title}${h.id === other ? ' · gekozen door je tegenstander' : ''}</small></span>
+        <span class="hp"><b>Passief:</b> ${h.passive}</span><span class="hs"><b>${h.superIcon} ${h.superName} (1×):</b> ${h.superText}</span>`;
+      b.onclick = () => { sfx([[523, 0, .2], [784, .08, .3]]); buzz(30); cmd('char', { hero: h.id }); };
+      box.append(b);
+    }
+    ['msg', 'peek', 'boardHint'].forEach((k) => $(k).textContent = '');
+    $('result').classList.add('hidden'); $('actions').classList.add('hidden'); $('tableRow').classList.add('hidden');
+    $('board').innerHTML = ''; $('hand').innerHTML = '<div class="empty">Je actiekaarten verschijnen hier.</div>';
+    return;
+  }
+  $('actions').classList.remove('hidden'); $('tableRow').classList.remove('hidden');
+  $('me').textContent = `${s.hero.icon} ${s.name}`; $('status').textContent = s.status || '';
+  document.body.style.setProperty('--hc', s.hero.color);
+  $('heroLine').textContent = `Passief: ${s.hero.passive}`;
+  $('bSuper').classList.toggle('hidden', s.superUsed);
+  $('bSuper').textContent = `${s.hero.superIcon} ${s.hero.superName}: ${s.hero.superText}`;
+  $('bSuper').disabled = busy || !s.canSuper;
+  $('time').textContent = `${Math.floor(s.timeLeft / 60)}:${String(s.timeLeft % 60).padStart(2, '0')}`;
+  $('time').classList.toggle('low', s.timeLeft < 60);
+  $('domA').style.width = s.dom[0] + '%'; $('domB').style.width = s.dom[1] + '%';
+  $('domAl').textContent = `blauw ${s.dom[0]}%`; $('domBl').textContent = `rood ${s.dom[1]}%`;
+  const turn = $('turn');
+  turn.className = 'turn' + (s.myTurn ? ' mine' : '');
+  turn.textContent = s.over ? 'Ronde voorbij' : s.myTurn ? 'Jouw beurt!' : `Beurt van ${s.curName}`;
+  if (s.myTurn && !wasMyTurn) { buzz([80, 60, 80]); sfx([[660, 0, .18], [990, .1, .3]], 'sine'); }
+  if (s.over && !wasOver) { const won = s.result?.winner === seat; sfx(won ? [[523, 0, .3], [659, .14, .3], [784, .28, .3], [1047, .42, .6]] : [[392, 0, .4], [330, .2, .4], [262, .4, .6]]); buzz(won ? [60, 40, 60, 40, 200] : 300); }
+  wasOver = s.over;
+  wasMyTurn = s.myTurn;
+  $('msg').textContent = s.msg || '';
+  $('card').textContent = s.card ? s.card.label : '?'; $('card').classList.toggle('red', !!s.card?.red);
+  $('tokens').innerHTML = `${s.tokens ? '★'.repeat(Math.min(s.tokens, 6)) : 0}<small>${s.phase === 'claim' && s.myTurn ? `${s.claims} te claimen` : 'claims'}</small>`;
+  $('peek').textContent = s.peek ? `🔭 Volgende kaart: ${s.peek}` : '';
+  $('bLower').disabled = $('bHigher').disabled = busy || !s.canGuess;
+  $('bCash').disabled = busy || !s.canCash;
+  $('bCash').textContent = s.myTurn && s.phase === 'claim' ? 'Tik hieronder een oplichtend vakje' : `Claim vastgoed (${s.tokens})`;
+  $('bCancel').classList.toggle('hidden', !s.canCancel);
+  const targeting = s.myTurn && (s.phase === 'claim' || s.phase === 'target');
+  $('boardHint').textContent = targeting ? '· tik een oplichtend vakje' : '';
+
+  // Each player sees their own flag at the bottom.
+  const order = s.tiles.map((t, i) => i); if (seat === 1) order.reverse();
+  const board = $('board'); board.innerHTML = '';
+  for (const i of order) {
+    const t = s.tiles[i], b = document.createElement('button');
+    b.className = `tile${t.o >= 0 ? ' o' + t.o : ''}${t.t ? ' t' : ''}`;
+    b.innerHTML = `${t.f >= 0 ? '🚩' : ICON[t.v]}${t.f >= 0 ? '' : `<span class="v">${t.v}</span>`}${t.s ? '<span class="sh">🛡️</span>' : ''}`;
+    b.disabled = busy || !t.t;
+    if (t.t) b.onclick = () => cmd('tile', { i });
+    board.append(b);
+  }
+
+  const hand = $('hand'); hand.innerHTML = '';
+  s.hand.forEach((c, idx) => {
+    const b = document.createElement('button'); b.className = 'hcard';
+    b.innerHTML = `<span class="ic">${c.icon}</span><b>${c.name}</b><small>${c.text}</small>`;
+    b.disabled = busy || !c.playable;
+    b.onclick = () => cmd('play', { idx });
+    hand.append(b);
+  });
+  if (!s.hand.length) hand.innerHTML = '<div class="empty">Nog geen actiekaarten. Ze zitten verstopt in de stapel.</div>';
+
+  const res = $('result');
+  res.classList.toggle('hidden', !s.over);
+  if (s.over && s.result) {
+    const win = s.result.winner === seat, color = s.result.winner < 0 ? '#fff' : s.result.winner ? 'var(--p1)' : 'var(--p0)';
+    res.innerHTML = `<h2 style="color:${color}">${s.result.winner < 0 ? 'Gelijkspel' : win ? 'Je wint! 🏆' : s.result.title}</h2><div>${s.result.why}</div><button id="again">Nog een ronde</button>`;
+    $('again').onclick = () => cmd('restart');
+  }
+}
+
+document.querySelectorAll('[data-seat]').forEach((b) => b.onclick = () => join(+b.dataset.seat));
+$('bHigher').onclick = () => cmd('guess', { dir: 'higher' });
+$('bLower').onclick = () => cmd('guess', { dir: 'lower' });
+$('bCash').onclick = () => cmd('cash');
+$('bCancel').onclick = () => cmd('cancel');
+$('bSuper').onclick = () => { buzz([40, 30, 120]); cmd('super'); };
+$('leave').onclick = async () => {
+  try { await fetch('/leave', { method: 'POST', body: JSON.stringify({ seat, id: myId }) }); } catch { /* server gone */ }
+  es?.close(); store.set('hg-seat', ''); showJoin();
+};
+
+const saved = store.get('hg-seat');
+if (saved === '0' || saved === '1') join(+saved); else showJoin();
+</script>
+</body>
+</html>
