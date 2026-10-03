@@ -356,7 +356,7 @@ function render() {
   res.classList.toggle('hidden', !s.over);
   if (s.over && s.result) {
     const win = s.result.winner === seat;
-    res.innerHTML = `<div class="eyebrow">${win ? 'Victory' : s.result.winner < 0 ? 'Stalemate' : 'Defeat'}</div><h2>${s.result.winner < 0 ? 'Draw' : win ? 'You win' : esc(s.result.title)}</h2><div style="font-style:italic">${esc(s.result.why)}</div><button class="btn" id="again" data-k="again">Play again</button>`;
+    res.innerHTML = `<div class="eyebrow">${win ? 'Victory' : s.result.winner < 0 ? 'Stalemate' : 'Defeat'}</div><h2>${s.result.winner < 0 ? 'Draw' : win ? 'You win' : esc(s.result.title)}</h2><div style="font-style:italic">${esc(s.result.why)}</div>${s.drinking && s.result.winner >= 0 ? `<div style="margin-top:12px;font:700 20px 'Cinzel Decorative',serif;color:var(--gold-hi)">${gl('🍺')} ${win ? 'You hand out 7 sips' : `${esc(s.result.title.replace(/ wins!?$/, ''))} hands out 7 sips`}</div>` : ''}<button class="btn" id="again" data-k="again">Play again</button>`;
     $('again').onclick = () => cmd('restart');
   }
 }

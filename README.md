@@ -99,6 +99,7 @@ drinker presses **Done** (on their own phone, or on screen without phones); AI p
 | Your HQ attack fails, you walk into an Ambush, or you are sabotaged | 1 |
 | Your HQ is taken | 5 |
 | You lose the game | 3 |
+| The winner hands out | 7 |
 
 ### Boons
 

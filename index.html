@@ -180,6 +180,9 @@
   #drinkBox .why { font: italic 15px var(--body); color: var(--muted); margin-bottom: 14px; }
   #drinkBox .wait { font: 700 11px var(--display); letter-spacing: .25em; text-transform: uppercase; color: var(--gold); animation: blink 1.4s infinite; }
   #drinkBox .btn { width: 100%; }
+  .gift { text-align: center; margin: 4px 0 14px; padding: 14px; border-radius: 6px; background: radial-gradient(circle at 50% 0%, #3a2f1c, #15121c 70%);
+    box-shadow: inset 0 0 0 1px var(--gold), 0 0 24px rgba(244,221,162,.2); font: 700 16px var(--display); letter-spacing: .08em; }
+  .gift .mug { font-size: 46px; line-height: 1; } .gift .sips { font: 700 30px/1.2 var(--deco); color: var(--gold-hi); margin-top: 4px; }
   .switch { display: inline-flex; align-items: center; gap: 12px; margin: 14px auto 0; padding: 6px 4px; background: none; border: 0;
     font: 700 12px var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
   .switch .track { position: relative; width: 46px; height: 24px; border-radius: 12px; background: #15121c; box-shadow: inset 0 0 0 1px var(--gold-lo); transition: background .2s; }
@@ -282,7 +285,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.4.1';
+const VERSION = '1.5.0';
 const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
 const SHIELD_FALL = 12 * 60; // after 12 minutes every HQ shield falls, so long rounds speed up towards the end
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
@@ -1545,7 +1548,8 @@ function gameOver(winner, reason) {
       const tookHQ = reason === 'flag' && p.i === S.lastOut;
       await drink(p.i, tookHQ ? 5 : 3, tookHQ ? 'Your HQ was taken' : winner < 0 ? 'Nobody won' : 'Lost the game');
     }
-  showOverlay(`<div class="logo">${LOGO}</div><h2>${title}</h2>
+  const gift = S.drinking && winner >= 0 ? `<div class="gift" style="--pc:${pcss(winner)}"><div class="mug">${gl('🍺')}</div><div><i class="gem"></i> ${S.players[winner].name}</div><div class="sips">Hand out 7 sips</div></div>` : '';
+  showOverlay(`<div class="logo">${LOGO}</div><h2>${title}</h2>${gift}
     ${S.players.map((p) => `<div class="seat ${p.i === winner ? 'on' : ''} ${p.alive ? '' : 'off'}" style="--pc:${pcss(p.i)}"><i class="gem"></i>${gl(CHARACTERS[p.char].icon)} ${p.name}<span style="margin-left:auto">${d[p.i]}%</span></div>`).join('')}
     <p class="center" style="color:var(--muted)">${clock(used)}</p>
     <div class="btns"><button class="btn" data-again>Play again</button><button class="btn dark" data-menu>Menu</button></div>`);
@@ -1657,7 +1661,7 @@ const RULES = `<ul>
   <li><b>Hold ${2} Beacons</b> ${gl('💎')} to drop rival HQ shields.</li>
   <li><b>Take an HQ</b> with 2× heads: that player is out.</li>
   <li><b>After 12 minutes</b> all shields fall.</li>
-  <li><b>Drinking mode</b> ${gl('🍺')}: wrong guess 1 sip (2 if you lose 2+ claims, 3 if 4+); losing a Beacon, a failed HQ attack, an ambush or sabotage 1; losing your HQ 5; losing the game 3. The game waits until you press Done.</li>
+  <li><b>Drinking mode</b> ${gl('🍺')}: wrong guess 1 sip (2 if you lose 2+ claims, 3 if 4+); losing a Beacon, a failed HQ attack, an ambush or sabotage 1; losing your HQ 5; losing the game 3. The winner hands out 7 sips. The game waits until you press Done.</li>
   <li><b>Win</b> as the last house, or with ${Math.round(DOM_WIN[2] * 100)}% / ${Math.round(DOM_WIN[3] * 100)}% / ${Math.round(DOM_WIN[4] * 100)}% of all value (2 / 3 / 4 players).</li></ul>`;
 let menuCount = 2;
 function countPicker() {
@@ -1927,7 +1931,7 @@ if (REMOTE) {
 }
 
 resize(); showMenu(); frame();
-window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame, drink };
+window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame, drink, gameOver };
 </script>
 </body>
 </html>
