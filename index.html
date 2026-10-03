@@ -110,7 +110,7 @@
   .empty { color: var(--faint); align-self: center; text-align: center; font: italic 14px var(--body); }
 
   /* ---- action cards as trading cards ---- */
-  .tcg { position: relative; flex: 0 0 112px; height: 132px; padding: 8px 7px 7px; border: 0; border-radius: 7px; text-align: center; overflow: hidden;
+  .tcg { position: relative; flex: 0 0 112px; height: 112px; padding: 8px 7px 7px; border: 0; border-radius: 7px; text-align: center; overflow: hidden;
     display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text);
     background: radial-gradient(circle at 50% 22%, #2d2638, #141119 72%);
     box-shadow: inset 0 0 0 1px var(--gold-lo), inset 0 0 0 4px #141119, inset 0 0 0 5px rgba(210,174,107,.35), 0 6px 14px #000b;
@@ -162,14 +162,16 @@
     background: radial-gradient(circle at 40% 35%, #3b3348, #100d15); box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px #100d15, 0 0 0 6px var(--gold-lo), 0 0 26px color-mix(in srgb, var(--hc) 45%, transparent); }
   .hero .hn { font: 700 20px/1 var(--display); letter-spacing: .1em; color: var(--gold-hi); margin-top: 6px; }
   .hero .ht { font: 600 10px/1 var(--display); letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
-  .hero .hp, .hero .hs { font: 13px/1.3 var(--body); color: #d5ccb7; }
+  .hero .hp, .hero .hs { font: 14px/1.3 var(--body); color: #d5ccb7; }
   .hero .hs { color: var(--gold-hi); }
   .hero .lab { display: block; font: 700 9px/1 var(--display); letter-spacing: .25em; text-transform: uppercase; color: var(--gold); margin: 6px 0 3px; }
   .perks { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
   .perkrow { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 6px; background: #15121c; box-shadow: inset 0 0 0 1px rgba(210,174,107,.25); }
   .perkrow .who { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; font: 700 12px var(--display); letter-spacing: .08em; }
   .perkrow .who .art { font-size: 26px; }
-  .perkrow .boon { font: 13px/1.3 var(--body); color: #d5ccb7; } .perkrow .boon b { font-family: var(--display); font-size: 12px; letter-spacing: .06em; }
+  .perkrow .boon { font: 14px/1.7 var(--body); color: #d5ccb7; }
+  .linkbtn { background: none; border: 0; color: var(--faint); font: 12px var(--body); text-decoration: underline; }
+  details.alts summary { text-align: left; padding: 4px 0; font-size: 10px; color: var(--faint); }
 
   /* ---- lobby ---- */
   .lobby { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; margin-top: 10px; }
@@ -212,7 +214,7 @@
     #timer { font-size: 17px; }
     #controls { gap: 8px; } #controls .btn { padding: 12px 8px; min-width: 0; flex: 1; font-size: 12px; letter-spacing: .08em; }
     #tokens { min-width: 46px; } #tokens .num { font-size: 18px; }
-    .tcg { flex-basis: 96px; height: 126px; }
+    .tcg { flex-basis: 96px; height: 108px; }
     #msg { font-size: 13px; padding: 6px 18px; top: 78px; }
     .title { font-size: 30px; } .heroes { grid-template-columns: 1fr; } .lobby { grid-template-columns: 1fr; }
   }
@@ -259,7 +261,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
 const PCSS = ['#4f8dff', '#e24a5a', '#35c47f', '#f0b13c'];
@@ -275,32 +277,32 @@ const BUILDINGS = { house: 'House', shop: 'Shop', tower: 'Tower', ruin: 'Ruined 
 
 // Four heroes: a card duelist (Yu-Gi-Oh inspired), a ki warrior (Dragon Ball inspired), a seer and a dragon tamer.
 const CHARACTERS = {
-  duelist: { name: 'Kaito', title: 'The Duelist', icon: '🃏', color: '#b07cff', glow: 0xb07cff,
+  duelist: { name: 'Kaito', title: 'The Duelist', icon: '🃏', color: '#b07cff', glow: 0xb07cff, short: 'Extra cards, hand of 6', superShort: 'Draw 2 action cards',
     passive: 'Starts with 2 action cards and may hold 6.', superName: 'Card Storm', superIcon: '🌠',
     superText: 'Instantly draw the next 2 action cards from the deck.', shout: 'My turn! Card Storm!' },
-  warrior: { name: 'Raiden', title: 'The Ki Warrior', icon: '🔥', color: '#ffb02e', glow: 0xffa020,
+  warrior: { name: 'Raiden', title: 'The Ki Warrior', icon: '🔥', color: '#ffb02e', glow: 0xffa020, short: 'Streaks earn bonus claims', superShort: 'Next flip: heads',
     passive: 'Power-up: from your 3rd correct guess in a turn, every correct guess gives +1 extra claim.', superName: 'Ki Blast', superIcon: '💥',
     superText: 'Your next coin flip is guaranteed heads, even against sabotage.', shout: 'Ki Blast… UNLEASHED!' },
-  seer: { name: 'Mira', title: 'The Seer', icon: '👁️', color: '#4fe3c1', glow: 0x4fe3c1,
+  seer: { name: 'Mira', title: 'The Seer', icon: '👁️', color: '#4fe3c1', glow: 0x4fe3c1, short: 'Ties count as correct', superShort: 'See the next 2 cards',
     passive: 'An equal card always counts as a correct guess.', superName: 'Third Eye', superIcon: '🔮',
     superText: 'See the next 2 playing cards of the deck.', shout: 'I see what is coming…' },
-  dragon: { name: 'Zara', title: 'The Dragon Tamer', icon: '🐉', color: '#ff4fa3', glow: 0xff4fa3,
+  dragon: { name: 'Zara', title: 'The Dragon Tamer', icon: '🐉', color: '#ff4fa3', glow: 0xff4fa3, short: 'Flies over obstacles', superShort: 'Burn nearby obstacles',
     passive: 'Flies over obstacles: tiles on the far side of an obstacle count as adjacent.', superName: 'Dragon Breath', superIcon: '🌋',
     superText: 'Burn away every obstacle next to your territory; they become neutral land.', shout: 'Awaken, dragon!' },
 };
 const CHAR_IDS = Object.keys(CHARACTERS);
 // Boons: every game each hero gets 2 random minor perks on top of their signature power.
 const PERKS = {
-  lucky:      { name: 'Lucky Start', icon: '🍀', text: 'Your first coin flip of the game is guaranteed heads.' },
-  pockets:    { name: 'Deep Pockets', icon: '👝', text: 'Hold one extra action card.' },
-  sharp:      { name: 'Card Sharp', icon: '🎴', text: 'Start with one extra action card.' },
-  path:       { name: 'Pathfinder', icon: '🧭', text: 'Start with a free tile next to your HQ.' },
-  bulwark:    { name: 'Bulwark', icon: '🏯', text: 'Your HQ needs 3× heads to fall instead of 2.' },
-  wind:       { name: 'Second Wind', icon: '💨', text: 'Once per game, your first wrong guess is forgiven.' },
-  prospector: { name: 'Prospector', icon: '⛏️', text: 'Capturing a Beacon gives +1 claim.' },
-  looter:     { name: 'Looter', icon: '💼', text: 'Stealing a rival tile draws an action card (once per turn).' },
-  charm:      { name: 'Lucky Charm', icon: '🧿', text: 'A failed coin flip has a 25% chance to be flipped again.' },
-  momentum:   { name: 'Momentum', icon: '📈', text: 'Your 4th correct guess in a turn gives +1 extra claim.' },
+  lucky:      { name: 'Lucky Start', icon: '🍀', short: 'First flip: heads', text: 'Your first coin flip of the game is guaranteed heads.' },
+  pockets:    { name: 'Deep Pockets', icon: '👝', short: 'Hand +1', text: 'Hold one extra action card.' },
+  sharp:      { name: 'Card Sharp', icon: '🎴', short: '+1 starting card', text: 'Start with one extra action card.' },
+  path:       { name: 'Pathfinder', icon: '🧭', short: '+1 starting tile', text: 'Start with a free tile next to your HQ.' },
+  bulwark:    { name: 'Bulwark', icon: '🏯', short: 'HQ needs 3× heads', text: 'Your HQ needs 3× heads to fall instead of 2.' },
+  wind:       { name: 'Second Wind', icon: '💨', short: 'Forgive one miss', text: 'Once per game, your first wrong guess is forgiven.' },
+  prospector: { name: 'Prospector', icon: '⛏️', short: 'Beacon: +1 claim', text: 'Capturing a Beacon gives +1 claim.' },
+  looter:     { name: 'Looter', icon: '💼', short: 'Steal a tile: +1 card', text: 'Stealing a rival tile draws an action card (once per turn).' },
+  charm:      { name: 'Lucky Charm', icon: '🧿', short: '25% reflip', text: 'A failed coin flip has a 25% chance to be flipped again.' },
+  momentum:   { name: 'Momentum', icon: '📈', short: '4th win: +1 claim', text: 'Your 4th correct guess in a turn gives +1 extra claim.' },
 };
 const PERK_IDS = Object.keys(PERKS);
 const hasPerk = (p, k) => p.perks.includes(k);
@@ -309,26 +311,26 @@ const clock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).p
 
 // 30 action cards in the double deck (Yu-Gi-Oh/Magic style: drawn into your hand, played on your turn).
 const ACTIONS = {
-  lucky:     { name: 'Golden Coin',    icon: '🪙', count: 2, text: 'Your next coin flip is guaranteed heads.' },
-  peek:      { name: 'Spyglass',       icon: '🔭', count: 2, text: 'Look at the next playing card before you guess.' },
-  double:    { name: 'Double or Nothing', icon: '⚡', count: 2, text: 'Your next correct guess gives 2 claims.' },
-  second:    { name: 'Second Chance',  icon: '🍀', count: 2, text: 'Your next wrong guess this turn does not count.' },
-  shield:    { name: 'Shield',         icon: '🛡️', count: 2, target: 'own', text: 'Protect one of your tiles from claims for 2 rounds.' },
-  equal:     { name: 'Stalemate',      icon: '⚖️', count: 1, text: 'This turn an equal card counts as correct.' },
-  sabotage:  { name: 'Sabotage',       icon: '💣', count: 1, text: 'The next coin flip of the strongest rival fails.' },
-  quake:     { name: 'Earthquake',     icon: '💢', count: 1, text: 'A random rival tile (not an HQ) turns neutral.' },
-  swap:      { name: 'Swap',           icon: '🔄', count: 1, text: 'Replace the open card with a new one.' },
-  takeover:  { name: 'Hostile Takeover', icon: '🏗️', count: 1, target: 'claim', text: 'Claim an adjacent tile without a coin flip (not an HQ).' },
-  bridge:    { name: 'Bridge',         icon: '🌉', count: 2, target: 'bridge', text: 'Claim a tile on the far side of an obstacle, no coin flip (not an HQ).' },
-  demolish:  { name: 'Demolition',     icon: '🧨', count: 2, target: 'obstacleAdj', text: 'Blow up an obstacle next to your territory: it becomes neutral land.' },
-  wall:      { name: 'Barricade',      icon: '🧱', count: 2, target: 'neutral', text: 'Build a wall on a neutral tile. Nobody can pass it.' },
-  portal:    { name: 'Portal',         icon: '🌀', count: 1, target: 'portal', text: 'Claim a neutral tile next to any obstacle on the map, no coin flip.' },
-  avalanche: { name: 'Avalanche',      icon: '🏔️', count: 1, text: 'Up to 2 rival tiles next to an obstacle turn neutral.' },
-  greed:     { name: 'Greed',          icon: '💰', count: 2, text: 'Gain +1 claim right now (lost on a wrong guess).' },
-  reroll:    { name: 'Reroll',         icon: '🎲', count: 2, text: 'If your next coin flip fails, flip again for free.' },
-  steal:     { name: 'Pickpocket',     icon: '🦝', count: 1, text: 'Steal a random action card from the rival with the most cards.' },
-  fortify:   { name: 'Fortress',       icon: '🏰', count: 1, target: 'ownLand', text: 'One of your tiles now needs 2× heads to be taken.' },
-  ambush:    { name: 'Ambush',         icon: '🕸️', count: 1, target: 'ownTrap', text: 'Hide a trap on your tile: the next attack on it fails automatically.' },
+  lucky:     { name: 'Golden Coin',    icon: '🪙', count: 2, short: 'Next flip: heads', text: 'Your next coin flip is guaranteed heads.' },
+  peek:      { name: 'Spyglass',       icon: '🔭', count: 2, short: 'See the next card', text: 'Look at the next playing card before you guess.' },
+  double:    { name: 'Double or Nothing', icon: '⚡', count: 2, short: 'Next win: 2 claims', text: 'Your next correct guess gives 2 claims.' },
+  second:    { name: 'Second Chance',  icon: '🍀', count: 2, short: 'Forgive one miss', text: 'Your next wrong guess this turn does not count.' },
+  shield:    { name: 'Shield',         icon: '🛡️', count: 2, short: 'Protect a tile', target: 'own', text: 'Protect one of your tiles from claims for 2 rounds.' },
+  equal:     { name: 'Stalemate',      icon: '⚖️', count: 1, short: 'Ties count', text: 'This turn an equal card counts as correct.' },
+  sabotage:  { name: 'Sabotage',       icon: '💣', count: 1, short: 'Leader\'s flip fails', text: 'The next coin flip of the strongest rival fails.' },
+  quake:     { name: 'Earthquake',     icon: '💢', count: 1, short: 'Rival tile → neutral', text: 'A random rival tile (not an HQ) turns neutral.' },
+  swap:      { name: 'Swap',           icon: '🔄', count: 1, short: 'New open card', text: 'Replace the open card with a new one.' },
+  takeover:  { name: 'Hostile Takeover', icon: '🏗️', count: 1, short: 'Free adjacent tile', target: 'claim', text: 'Claim an adjacent tile without a coin flip (not an HQ).' },
+  bridge:    { name: 'Bridge',         icon: '🌉', count: 2, short: 'Claim across obstacle', target: 'bridge', text: 'Claim a tile on the far side of an obstacle, no coin flip (not an HQ).' },
+  demolish:  { name: 'Demolition',     icon: '🧨', count: 2, short: 'Destroy an obstacle', target: 'obstacleAdj', text: 'Blow up an obstacle next to your territory: it becomes neutral land.' },
+  wall:      { name: 'Barricade',      icon: '🧱', count: 2, short: 'Build a wall', target: 'neutral', text: 'Build a wall on a neutral tile. Nobody can pass it.' },
+  portal:    { name: 'Portal',         icon: '🌀', count: 1, short: 'Claim near obstacle', target: 'portal', text: 'Claim a neutral tile next to any obstacle on the map, no coin flip.' },
+  avalanche: { name: 'Avalanche',      icon: '🏔️', count: 1, short: '2 rival tiles → neutral', text: 'Up to 2 rival tiles next to an obstacle turn neutral.' },
+  greed:     { name: 'Greed',          icon: '💰', count: 2, short: '+1 claim now', text: 'Gain +1 claim right now (lost on a wrong guess).' },
+  reroll:    { name: 'Reroll',         icon: '🎲', count: 2, short: 'Retry a failed flip', text: 'If your next coin flip fails, flip again for free.' },
+  steal:     { name: 'Pickpocket',     icon: '🦝', count: 1, short: 'Steal a card', text: 'Steal a random action card from the rival with the most cards.' },
+  fortify:   { name: 'Fortress',       icon: '🏰', count: 1, short: 'Tile needs 2× heads', target: 'ownLand', text: 'One of your tiles now needs 2× heads to be taken.' },
+  ambush:    { name: 'Ambush',         icon: '🕸️', count: 1, short: 'Trap your tile', target: 'ownTrap', text: 'Hide a trap on your tile: the next attack on it fails automatically.' },
 };
 const ACTION_TOTAL = Object.values(ACTIONS).reduce((s, a) => s + a.count, 0);
 
@@ -1068,7 +1070,7 @@ function buildDeck() {
 }
 function ensureDeck() {
   if (S.deck.length) return;
-  S.deck = shuffle(S.discard); S.discard = []; say('The discard pile was shuffled into a new deck.');
+  S.deck = shuffle(S.discard); S.discard = []; say('Deck reshuffled.');
 }
 async function drawPlaying(pi) {
   for (;;) {
@@ -1078,8 +1080,8 @@ async function drawPlaying(pi) {
     if (pi == null) { S.discard.push(card); continue; }
     const p = S.players[pi];
     await showActionDraw(card, pi);
-    if (p.hand.length < handMax(p)) { p.hand.push(card); say(`${p.name} ${p.ai ? 'draws an action card' : `draws ${ACTIONS[card.id].icon} ${ACTIONS[card.id].name}`}.`); }
-    else { S.discard.push(card); say(`${p.name}'s hand is full: action card discarded.`); }
+    if (p.hand.length < handMax(p)) { p.hand.push(card); say(p.ai ? `${p.name} draws a card.` : `New card: ${ACTIONS[card.id].name}`); }
+    else { S.discard.push(card); say('Hand full: card discarded.'); }
     updateUI();
   }
 }
@@ -1136,7 +1138,7 @@ async function startGame(mode, n, picks = []) {
   await perkReveal();
   updateUI();
   S.current = await drawPlaying(null); await revealCard(S.current);
-  say('Heads or tails: who starts?');
+  say('Who starts?');
   await flipCoin(new THREE.Vector3(0, .5, 0), Math.random() < .5);
   S.cur = Math.random() * n | 0;
   say(`${S.players[S.cur].name} starts.`);
@@ -1183,16 +1185,16 @@ async function guess(dir) {
     const gain = (p.double ? 2 : 1) + (powerUp ? 1 : 0) + (hasPerk(p, 'momentum') && S.streak === 4 ? 1 : 0); p.double = false; S.tokens += gain;
     floatText(`${powerUp ? '🔥 Power-up! ' : tie ? '👁️ Equal = correct! ' : 'Correct! '}+${gain} claim${gain > 1 ? 's' : ''}`, where, powerUp ? '#ffe1a0' : '#f4dda2');
     SFX.play(powerUp ? 'powerup' : 'correct', S.streak);
-    say(`${cardLabel(next)}: correct. ${p.name} has ${S.tokens} claim${S.tokens > 1 ? 's' : ''}.`);
+    say(`${cardLabel(next)} · correct`);
     S.phase = 'guess'; updateUI(); return;
   }
   if (p.second > 0 || p.wind > 0) {
     if (p.second > 0) p.second--; else p.wind--;
-    SFX.play('save'); floatText('Second chance!', where, '#f4dda2'); say(`${cardLabel(next)}: wrong, but the second chance saves ${p.name}.`);
+    SFX.play('save'); floatText('Second chance!', where, '#f4dda2'); say(`${cardLabel(next)} · saved`);
     S.phase = 'guess'; updateUI(); return;
   }
   floatText(tie ? 'Equal = wrong' : 'Wrong!', where, '#d8445c'); SFX.play('wrong');
-  say(`${cardLabel(next)}: wrong${S.tokens ? `, ${S.tokens} claim${S.tokens > 1 ? 's' : ''} lost` : ''}.`);
+  say(`${cardLabel(next)} · wrong${S.tokens ? ', claims lost' : ''}`);
   S.tokens = 0; updateUI();
   await sleep(1000); if (dead(id)) return;
   endTurn();
@@ -1202,7 +1204,7 @@ function cashIn() {
   if (!S || S.phase !== 'guess' || S.tokens <= 0) return;
   S.claims = S.tokens; S.tokens = 0;
   const ts = claimTargets(S.cur);
-  if (!ts.length) { say('No tiles within reach.'); endTurn(); return; }
+  if (!ts.length) { say('Nothing in reach.'); endTurn(); return; }
   S.phase = 'claim'; setTargets(ts); updateUI();
   if (S.players[S.cur].ai) aiClaim(S.turnId);
 }
@@ -1211,22 +1213,22 @@ async function attemptClaim(t) {
   const p = S.players[S.cur], id = S.turnId;
   S.phase = 'busy'; setTargets([]); updateUI();
   const need = t.kind === 'hq' ? (hasPerk(S.players[t.owner], 'bulwark') ? 3 : 2) : t.fort ? 2 : 1; let ok = true;
-  say(`${p.name} attacks ${tileName(t)}${need > 1 ? ' (2× heads needed!)' : ''}…`);
+  say(`${p.name} attacks ${tileName(t)}${need > 1 ? ` · ${need}× heads` : ''}`);
   if (t.trap >= 0 && t.trap === t.owner) {
     t.trap = -1; ok = false; SFX.play('trap');
     await tween(.5, (k) => { t.content.position.y = TOP + Math.sin(k * Math.PI * 6) * .05 * (1 - k); });
-    floatText('🕸️ Ambush!', t.pos.clone().add(new THREE.Vector3(0, .9, 0)), '#d8445c'); say('🕸️ Ambush! The attack fails.');
+    floatText('🕸️ Ambush!', t.pos.clone().add(new THREE.Vector3(0, .9, 0)), '#d8445c'); say('Ambush! Attack fails.');
   }
   for (let i = 0; i < need && ok; i++) {
     let heads = Math.random() < .5;
-    if (p.ki) { p.ki = false; heads = true; say('💥 Ki Blast: guaranteed heads!'); }
-    else if (p.sabotaged > 0) { p.sabotaged--; heads = false; say('💣 Sabotaged! The coin lands wrong.'); }
-    else if (p.lucky > 0) { p.lucky--; heads = true; say('🪙 Golden Coin: guaranteed heads.'); }
+    if (p.ki) { p.ki = false; heads = true; say('Ki Blast: heads'); }
+    else if (p.sabotaged > 0) { p.sabotaged--; heads = false; say('Sabotaged!'); }
+    else if (p.lucky > 0) { p.lucky--; heads = true; say('Golden Coin: heads'); }
     updateUI();
     ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), heads);
     if (dead(id)) return;
     if (!ok && (p.reroll > 0 || (hasPerk(p, 'charm') && Math.random() < .25))) {
-      if (p.reroll > 0) { p.reroll--; say('🎲 Reroll!'); } else say('🧿 Lucky Charm: flip again!');
+      if (p.reroll > 0) { p.reroll--; say('Reroll'); } else say('Lucky Charm: reflip');
       SFX.play('save'); ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), Math.random() < .5); if (dead(id)) return;
     }
   }
@@ -1236,14 +1238,14 @@ async function attemptClaim(t) {
     await setOwner(t, S.cur); if (dead(id)) return;
     if (wasHQ) { await eliminate(victim, S.cur, t); if (dead(id)) return; }
     else {
-      SFX.play(victim >= 0 ? 'steal' : 'claim'); say(`${p.name} ${victim >= 0 ? 'steals' : 'claims'} ${tileName(t)}!`);
+      SFX.play(victim >= 0 ? 'steal' : 'claim'); say(`${p.name} ${victim >= 0 ? 'steals' : 'takes'} ${tileName(t)}`);
       if (t.kind === 'beacon' && hasPerk(p, 'prospector')) { S.claims++; floatText('⛏️ +1 claim', t.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), '#f4dda2'); }
       if (victim >= 0 && hasPerk(p, 'looter') && !S.looted && p.hand.length < handMax(p)) {
         const i = S.deck.findLastIndex((c) => c.kind === 'action');
         if (i >= 0) { S.looted = true; const [card] = S.deck.splice(i, 1); await showActionDraw(card, p.i); if (dead(id)) return; p.hand.push(card); updateUI(); }
       }
     }
-  } else { if (!/Ambush/.test($('msg').textContent)) say('Claim failed.'); SFX.play('fail'); }
+  } else { if (!/Ambush/.test($('msg').textContent)) say('Tails · failed'); SFX.play('fail'); }
   await sleep(300); if (dead(id)) return;
   const ts = claimTargets(S.cur);
   if (S.claims > 0 && ts.length) { S.phase = 'claim'; setTargets(ts); updateUI(); if (p.ai) aiClaim(id); }
@@ -1261,7 +1263,7 @@ async function eliminate(victim, by, hqTile) {
   if (alive().length === 1) return gameOver(by, 'flag');
   SFX.play('eliminate');
   await banner(`${v.name} is eliminated!`, pcss(victim), 1300);
-  say(`${S.players[by].name} captured ${v.name}'s HQ.`);
+  say(`${v.name} is out`);
   buildHud(); updateUI();
 }
 
@@ -1299,14 +1301,14 @@ async function playCard(pi, idx, target) {
   if (!canPlay(pi, card.id)) return;
   if (A.target && !target) {
     S.phase = 'target'; S.pending = idx; setTargets(cardTargets(pi, A.target)); updateUI();
-    say(`${A.icon} ${A.name}: choose a highlighted tile.`);
+    say(`${A.name}: pick a tile`);
     return;
   }
   p.hand.splice(idx, 1); S.discard.push(card); S.phase = 'busy'; updateUI();
   SFX.play('cast');
   await banner(`${A.icon} ${A.name}`, '#f4dda2', 700);
   if (dead(id)) return;
-  say(`${p.name} plays ${A.icon} ${A.name}.`);
+  say(`${p.name} plays ${A.name}`);
   const leader = leaderRival(pi);
   switch (card.id) {
     case 'lucky': p.lucky++; break;
@@ -1316,7 +1318,7 @@ async function playCard(pi, idx, target) {
     case 'second': p.second++; break;
     case 'greed': S.tokens++; SFX.play('correct', 1); break;
     case 'reroll': p.reroll++; break;
-    case 'sabotage': if (leader) { leader.sabotaged++; say(`💣 ${leader.name} is sabotaged.`); SFX.play('boom'); } break;
+    case 'sabotage': if (leader) { leader.sabotaged++; say(`${leader.name} sabotaged`); SFX.play('boom'); } break;
     case 'shield': target.shield = 2 * (alive().length - 1); paintTile(target); SFX.play('shield'); break;
     case 'fortify': target.fort = true; SFX.play('shield'); floatText('🏰 Fortress', target.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#f4dda2'); break;
     case 'ambush': target.trap = pi; SFX.play('trap'); break;
@@ -1339,7 +1341,7 @@ async function playCard(pi, idx, target) {
       const victim = rivals(pi).sort((a, b) => b.hand.length - a.hand.length)[0];
       const [c] = victim.hand.splice(Math.random() * victim.hand.length | 0, 1);
       if (p.hand.length < handMax(p)) p.hand.push(c); else S.discard.push(c);
-      say(`🦝 ${p.name} steals a card from ${victim.name}.`); break;
+      say(`Card stolen from ${victim.name}`); break;
     }
     case 'swap': {
       const next = await drawPlaying(pi); if (dead(id)) return;
@@ -1358,7 +1360,7 @@ async function useSuper(pi) {
   const p = S.players[pi], C = CHARACTERS[p.char], id = S.turnId;
   p.superUsed = true; S.phase = 'busy'; updateUI();
   SFX.play('super_' + p.char); heroBurst(pi);
-  say(`${C.icon} ${p.name}: “${C.shout}”`);
+  say(`“${C.shout}”`);
   await banner(`${C.superIcon} ${C.superName}!`, C.color, 1100);
   if (dead(id)) return;
   if (p.char === 'duelist') {
@@ -1369,13 +1371,13 @@ async function useSuper(pi) {
       if (p.hand.length < handMax(p)) p.hand.push(card); else S.discard.push(card);
       updateUI();
     }
-    say(got ? `${p.name} draws ${got} action card${got > 1 ? 's' : ''} with Card Storm.` : 'No action cards left in the deck.');
+    say(got ? `+${got} card${got > 1 ? 's' : ''}` : 'No cards left');
   } else if (p.char === 'warrior') p.ki = true;
   else if (p.char === 'seer') { [S.peek, S.peek2] = peekNext(2); }
   else {
     const ts = dragonTargets(pi);
     for (const t of ts) { await transform(t, 'land', { bType: 'house', value: 1, owner: -1 }); if (dead(id)) return; }
-    say(ts.length ? `🐉 ${ts.length} obstacle${ts.length > 1 ? 's' : ''} burned away.` : 'No obstacles next to your territory.');
+    say(ts.length ? `${ts.length} obstacle${ts.length > 1 ? 's' : ''} burned` : 'No obstacles nearby');
   }
   S.phase = 'guess'; updateUI();
 }
@@ -1455,7 +1457,7 @@ async function aiTurn(id) {
     if (play) { await sleep(400); if (dead(id)) return; await playCard(S.cur, play.idx, play.target); await sleep(450); continue; }
     if (!aiContinue(p, pr)) { await sleep(500); if (!dead(id)) cashIn(); return; }
     const dir = aiDir(pr);
-    say(`${p.name} picks ${dir === 'higher' ? '▲ higher' : '▼ lower'} than ${cardLabel(S.current)}…`);
+    say(`${p.name}: ${dir === 'higher' ? '▲ higher' : '▼ lower'}`);
     await sleep(750); if (dead(id)) return;
     await guess(dir);
     await sleep(400);
@@ -1478,9 +1480,9 @@ function gameOver(winner, reason) {
   S.result = { title, why, winner };
   SFX.play(winner < 0 ? 'draw' : (S.mode === 'ai' && winner !== 0) ? 'lose' : 'win');
   const used = S.elapsed;
-  showOverlay(`<div class="logo">${LOGO}</div><div class="eyebrow center">${winner < 0 ? 'Stalemate' : 'Victory'}</div><h2>${title}</h2><p class="center"><i>${why}</i></p><div class="rule"></div>
-    ${S.players.map((p) => `<div class="seat ${p.i === winner ? 'on' : ''} ${p.alive ? '' : 'off'}" style="--pc:${pcss(p.i)}"><i class="gem"></i>${gl(CHARACTERS[p.char].icon)} ${p.name}<span style="margin-left:auto">${d[p.i]}% dominance${p.alive ? '' : ' · eliminated'}</span></div>`).join('')}
-    <p class="center" style="color:var(--muted)">Play time ${clock(used)} · ${S.turn + 1} turns</p>
+  showOverlay(`<div class="logo">${LOGO}</div><h2>${title}</h2>
+    ${S.players.map((p) => `<div class="seat ${p.i === winner ? 'on' : ''} ${p.alive ? '' : 'off'}" style="--pc:${pcss(p.i)}"><i class="gem"></i>${gl(CHARACTERS[p.char].icon)} ${p.name}<span style="margin-left:auto">${d[p.i]}%</span></div>`).join('')}
+    <p class="center" style="color:var(--muted)">${clock(used)}</p>
     <div class="btns"><button class="btn" data-again>Play again</button><button class="btn dark" data-menu>Menu</button></div>`);
   pushRemote();
 }
@@ -1513,9 +1515,8 @@ function updateFloats(dt) {
 function setTargets(ts) { if (S) S.targets = ts; }
 function passScreen(p) {
   return new Promise((res) => {
-    showOverlay(`<div class="eyebrow center">Pass the device</div><h2>${gl(CHARACTERS[p.char].icon)} ${p.name}</h2>
-      <p class="center">Your action cards stay hidden until you are ready.</p>
-      <div class="btns"><button class="btn" id="goPass">I'm ready</button></div>`);
+    showOverlay(`<h2>${gl(CHARACTERS[p.char].icon)} ${p.name}</h2>
+      <div class="btns"><button class="btn" id="goPass">Ready</button></div>`);
     $('goPass').onclick = () => { hideOverlay(); res(); };
   });
 }
@@ -1541,29 +1542,27 @@ function updateUI() {
     const C = CHARACTERS[p.char], tiles = S.tiles.filter((t) => t.owner === p.i).length;
     const off = S.mode === 'remote' && !p.ai && !remoteSeats[p.slot].online ? ' 📵' : '';
     el.classList.toggle('active', S.cur === p.i && !S.over); el.classList.toggle('dead', !p.alive);
-    const boons = p.perks.map((k) => `<span title="${PERKS[k].name}: ${PERKS[k].text}">${gl(PERKS[k].icon)}</span>`).join('');
-    el.innerHTML = `<div class="nm">${gl(C.icon)} ${p.name}${off} ${p.superUsed ? '' : `<span title="${C.superName}: ${C.superText}">${gl(C.superIcon)}</span>`}${boons}${statusIcons(p) ? ` ${gl(statusIcons(p))}` : ''}</div>
-      <div class="st">Lands <b>${tiles}</b> · Value <b>${ownedValue(p.i)}</b> · <b>${Math.round(d[p.i] * 100)}%</b> · Beacons <b>${beaconCount(p.i)}/${need}</b> · Cards <b>${p.hand.length}</b></div>`;
+    el.title = `${C.name}, ${C.title}\n${C.passive}\nSuper: ${C.superName}${p.superUsed ? ' (used)' : ''}\nBoons: ${p.perks.map((k) => PERKS[k].name).join(', ')}\n${tiles} tiles · ${p.hand.length} cards`;
+    el.innerHTML = `<div class="nm">${gl(C.icon)} ${p.name}${off}</div>
+      <div class="st">${gl('💎')} <b>${beaconCount(p.i)}/${need}</b> &nbsp; <b>${Math.round(d[p.i] * 100)}%</b>${statusIcons(p) ? ` &nbsp; ${gl(statusIcons(p))}` : ''}</div>`;
     $('dom' + p.i).style.width = d[p.i] * 100 + '%';
   }
   const tl = S.elapsed;
   $('timer').textContent = clock(tl);
-  $('turnlbl').textContent = `Turn ${S.turn + 1} · Deck ${S.deck.length}`;
+  $('turnlbl').textContent = '';
   const human = isHumanTurn(), guessing = human && S.phase === 'guess';
   $('bLower').disabled = $('bHigher').disabled = !guessing;
   $('bCash').disabled = !(guessing && S.tokens > 0);
-  $('bCash').textContent = S.phase === 'claim' ? `Pick a tile · ${S.claims}` : `Claim · ${S.tokens}`;
+  $('bCash').textContent = S.phase === 'claim' ? `Pick a tile` : `Claim`;
   $('bCancel').style.display = human && S.phase === 'target' ? 'block' : 'none';
   const sc = CHARACTERS[S.players[S.cur].char];
-  $('bSuper').innerHTML = `${gl(sc.superIcon)}${sc.superName}`; $('bSuper').title = sc.superText;
+  $('bSuper').innerHTML = `${gl(sc.superIcon)}Super`; $('bSuper').title = `${sc.superName}: ${sc.superText}`;
   $('bSuper').disabled = !(human && S.mode !== 'remote' && canSuper(S.cur));
   $('bSuper').style.display = human && !S.players[S.cur].superUsed ? '' : 'none';
-  $('tokens').innerHTML = `<span class="num">${S.tokens}</span>Claims`;
+  $('tokens').innerHTML = `<span class="num">${S.phase === 'claim' ? S.claims : S.tokens}</span>Claims`;
   $('peek').textContent = human && S.mode !== 'remote' && S.peek ? `Next card ${cardLabel(S.peek)}${S.peek2 ? ` · then ${cardLabel(S.peek2)}` : ''}` : '';
-  if (guessing) say(S.tokens === 0
-    ? `Will the next card be higher or lower than ${cardLabel(S.current)}?`
-    : `${S.tokens} claim${S.tokens > 1 ? 's' : ''} in hand. Press your luck on ${cardLabel(S.current)}, or claim property.`);
-  else if (human && S.phase === 'claim') say(`Choose a glowing tile to claim (${S.claims} left). ${canAttackHQ(S.cur) ? 'Rival HQ shields are down for you.' : `HQ shields fall at ${need} Beacons.`}`);
+  if (guessing) say(S.tokens === 0 ? `Higher or lower than ${cardLabel(S.current)}?` : `Guess again or claim`);
+  else if (human && S.phase === 'claim') say(`Pick a glowing tile`);
   // HQ domes crack when the active player may attack them
   for (const t of S.tiles) if (t.kind === 'hq') { const dome = t.content.userData.dome || t.content.children.find((c) => c.material?.uniforms?.uOpen); if (dome) dome.material.uniforms.uOpen.value = t.owner !== S.cur && canAttackHQ(S.cur) ? 1 : 0; }
   renderHand(); pushRemote();
@@ -1575,69 +1574,58 @@ function renderHand() {
   if (S.mode === 'pvp' && S.phase === 'pass') { hand.innerHTML = '<div class="empty">Cards are hidden until the next player is ready.</div>'; return; }
   p.hand.forEach((c, i) => {
     const A = ACTIONS[c.id], el = document.createElement('button');
-    el.className = 'tcg'; el.innerHTML = `<span class="art">${gl(A.icon)}</span><span class="nm">${A.name}</span><span class="tx">${A.text}</span>`;
+    el.className = 'tcg'; el.title = A.text; el.innerHTML = `<span class="art">${gl(A.icon)}</span><span class="nm">${A.name}</span><span class="tx">${A.short}</span>`;
     el.disabled = !(S.phase === 'guess' && S.cur === viewer && isHumanTurn() && canPlay(viewer, c.id));
     el.onclick = () => playCard(viewer, i);
     hand.append(el);
   });
-  if (!p.hand.length) hand.innerHTML = `<div class="empty">Your hand is empty. ${ACTION_TOTAL} action cards lurk in the deck.</div>`;
+  if (!p.hand.length) hand.innerHTML = `<div class="empty">No cards yet</div>`;
 }
 
 function showOverlay(html, wide = false) { const o = $('overlay'); o.innerHTML = `<div class="box panel${wide ? ' wide' : ''}">${html}</div>`; o.classList.remove('hidden'); }
 function hideOverlay() { $('overlay').classList.add('hidden'); }
 const RULES = `<ul>
-  <li><b>Higher or lower.</b> Take turns guessing whether the next card is higher or lower. Equal is wrong, aces are high. Every correct guess earns a claim.</li>
-  <li><b>Press your luck.</b> Keep guessing to stack claims; one wrong guess loses them all.</li>
-  <li><b>Heads or tails.</b> Spend claims on tiles next to your territory. Heads: the property is yours, even if a rival owned it.</li>
-  <li><b>Obstacles.</b> Mountains, lakes, crystal fields and barricades block the way. The map is forged anew every round.</li>
-  <li><b>Beacons.</b> Every HQ hides under an energy shield that falls for you once you hold ${2} Beacons. They stand on the flanks, away from the straight road between the bases.</li>
-  <li><b>Assassination.</b> An open HQ needs 2× heads in a row. Its owner is out; the last house standing wins.</li>
-  <li><b>Dominance.</b> House 1, shop 2, tower, HQ and Beacon 3. Hold ${Math.round(DOM_WIN[2] * 100)}% (2p), ${Math.round(DOM_WIN[3] * 100)}% (3p) or ${Math.round(DOM_WIN[4] * 100)}% (4p) of all value at the start of your turn to win.</li>
-  <li><b>Action cards.</b> ${ACTION_TOTAL} spells hide in a double deck of ${104 + ACTION_TOTAL} cards. Drawn ones join your hand; play them on your turn.</li>
-  <li><b>Heroes.</b> Kaito, Raiden, Mira and Zara each carry a signature power and one super, plus two random Boons that change every game.</li>
-  <li><b>Pace.</b> A round usually takes about ten minutes; the clock only counts, it never ends the game.</li></ul>`;
+  <li><b>Guess</b> higher or lower. Each hit = 1 claim. A miss loses them all.</li>
+  <li><b>Claim</b> a tile next to your land: heads wins it.</li>
+  <li><b>Hold ${2} Beacons</b> ${gl('💎')} to drop rival HQ shields.</li>
+  <li><b>Take an HQ</b> with 2× heads: that player is out.</li>
+  <li><b>Win</b> as the last house, or with ${Math.round(DOM_WIN[2] * 100)}% / ${Math.round(DOM_WIN[3] * 100)}% / ${Math.round(DOM_WIN[4] * 100)}% of all value (2 / 3 / 4 players).</li></ul>`;
 let menuCount = 2;
 function countPicker() {
   return `<div class="count">Players ${[2, 3, 4].map((k) => `<button data-count="${k}" class="${k === menuCount ? 'on' : ''}"><span>${k}</span></button>`).join('')}</div>`;
 }
 function showMenu() {
   showOverlay(`<div class="logo">${LOGO}</div><h1 class="title">Estate Assassins</h1>
-    <p class="tagline">Guess the cards. Flip the coin. Seize the Beacons. Strike the house.</p><div class="version">Edition ${VERSION}</div>
-    <div class="rule"></div>${countPicker()}
-    <div class="btns"><button class="btn" data-mode="ai">Play vs AI</button>${REMOTE ? '<button class="btn" data-lobby>Play with phones</button>' : ''}<button class="btn dark" data-mode="pvp">Hot-seat</button></div>
-    ${REMOTE ? '' : '<p class="center" style="font-size:13px;color:var(--muted)">Phones as controllers? Start <code>node server.mjs</code> and open the address it prints.</p>'}
-    <details><summary>◆ The Rules ◆</summary>${RULES}</details>`);
+    ${countPicker()}
+    <div class="btns"><button class="btn" data-mode="ai">Play vs AI</button>${REMOTE ? '<button class="btn" data-lobby>Phones</button>' : ''}<button class="btn dark" data-mode="pvp">Hot-seat</button></div>
+    <details><summary>How to play</summary>${RULES}</details>`);
   document.body.classList.remove('remote', 'pipon'); resize();
   if (S?.mode === 'remote') { S.over = true; S = null; }
   pushLobby();
 }
 function heroCards(taken) {
   return `<div class="heroes">${CHAR_IDS.map((id) => { const C = CHARACTERS[id];
-    return `<button class="hero" style="--hc:${C.color}" data-char="${id}" ${taken.includes(id) ? 'disabled' : ''}>
-      <span class="medal">${gl(C.icon)}</span><span class="hn">${C.name}</span><span class="ht">${C.title}</span>
-      <span class="hp"><span class="lab">Signature</span>${C.passive}</span>
-      <span class="hs"><span class="lab">${gl(C.superIcon)} ${C.superName} · once</span>${C.superText}</span></button>`; }).join('')}</div>`;
+    return `<button class="hero" style="--hc:${C.color}" data-char="${id}" ${taken.includes(id) ? 'disabled' : ''} title="${C.passive}\n${C.superName}: ${C.superText}">
+      <span class="medal">${gl(C.icon)}</span><span class="hn">${C.name}</span>
+      <span class="hp">${C.short}</span><span class="hs">${gl(C.superIcon)} ${C.superShort}</span></button>`; }).join('')}</div>`;
 }
 // Shows each hero's two random Boons before the first turn.
 function perkReveal() {
   return new Promise((res) => {
     let done = false; const go = () => { if (!done) { done = true; hideOverlay(); res(); } };
-    showOverlay(`<div class="eyebrow center">This game's Boons</div><h2>The Houses Prepare</h2>
-      <p class="center" style="color:var(--muted)">Every hero keeps their signature power and receives two random Boons for this game.</p>
-      <div class="perks">${S.players.map((p) => `<div class="perkrow" style="--pc:${pcss(p.i)}"><div class="who"><span class="art">${gl(CHARACTERS[p.char].icon)}</span><span><i class="gem"></i> ${p.name}</span></div>
-        <div class="boon">${p.perks.map((k) => `${gl(PERKS[k].icon)} <b>${PERKS[k].name}</b><br>${PERKS[k].text}`).join('<div class="rule" style="margin:6px 0"></div>')}</div></div>`).join('')}</div>
-      <div class="btns"><button class="btn" id="goBoons">To battle</button></div>`, true);
+    showOverlay(`<h2>Boons</h2>
+      <div class="perks">${S.players.map((p) => `<div class="perkrow" style="--pc:${pcss(p.i)}"><div class="who"><span class="art">${gl(CHARACTERS[p.char].icon)}</span><span><i class="gem"></i> ${CHARACTERS[p.char].name}</span></div>
+        <div class="boon">${p.perks.map((k) => `<div title="${PERKS[k].text}">${gl(PERKS[k].icon)} ${PERKS[k].short}</div>`).join('')}</div></div>`).join('')}</div>
+      <div class="btns"><button class="btn" id="goBoons">Start</button></div>`, true);
     $('goBoons').onclick = go;
-    sleep(S.mode === 'remote' || AUTOPLAY ? 7000 : 60000).then(go);
+    sleep(S.mode === 'remote' || AUTOPLAY ? 6000 : 60000).then(go);
   });
 }
 let charSelect = null;
 function showCharSelect(mode, n, picks = []) {
   charSelect = { mode, n, picks };
   const seat = picks.length;
-  const who = mode === 'ai' ? 'Choose your hero' : `House ${COLOR_NAMES[seat]}: choose your hero`;
-  showOverlay(`<div class="eyebrow center">${mode === 'ai' ? 'Your champion' : `Player ${seat + 1} of ${n}`}</div><h2 style="--pc:${PCSS[seat]}">${mode === 'ai' ? '' : '<i class="gem" style="margin-right:12px;vertical-align:middle"></i>'}${who}</h2>
-    <p class="center" style="color:var(--muted)">Each hero brings a signature power and one super. Two random Boons are added when the game begins.</p>
+  showOverlay(`<h2 style="--pc:${PCSS[seat]}">${mode === 'ai' ? '' : '<i class="gem" style="margin-right:12px;vertical-align:middle"></i>'}${mode === 'ai' ? 'Choose your hero' : `${COLOR_NAMES[seat]}: choose a hero`}</h2>
     ${heroCards(picks)}<div class="btns"><button class="btn dark" data-menu>Back</button></div>`, true);
 }
 function onCharPicked(id) {
@@ -1658,7 +1646,7 @@ $('overlay').addEventListener('click', (e) => {
   else if (b.hasAttribute('data-close')) hideOverlay();
   else if (b.hasAttribute('data-reset')) fetch('/reset', { method: 'POST' });
 });
-$('help').onclick = () => showOverlay(`<div class="eyebrow center">Codex</div><h2>The Rules</h2>${RULES}<div class="btns"><button class="btn" data-close>Keep playing</button><button class="btn dark" data-menu>Quit to menu</button></div>`);
+$('help').onclick = () => showOverlay(`<h2>How to play</h2>${RULES}<div class="btns"><button class="btn" data-close>Back to game</button><button class="btn dark" data-menu>Quit</button></div>`);
 // In phone mode the PC only shows the game; all input comes from the phones.
 const localInput = () => isHumanTurn() && S.mode !== 'remote';
 $('bHigher').onclick = () => localInput() && guess('higher');
@@ -1755,7 +1743,7 @@ function remoteState(slot) {
     seat: slot, n: S.n, name: p.name, alive: p.alive, cur: S.cur, curName: S.players[S.cur].name, myTurn: mine, phase: S.phase,
     card: S.current && { label: cardLabel(S.current), red: S.current.suit === 1 || S.current.suit === 2 },
     tokens: S.tokens, claims: S.claims, msg: $('msg').textContent, peek: mine && S.peek ? cardLabel(S.peek) + (S.peek2 ? ` · then ${cardLabel(S.peek2)}` : '') : '',
-    hand: p.hand.map((c) => ({ id: c.id, name: ACTIONS[c.id].name, icon: ACTIONS[c.id].icon, text: ACTIONS[c.id].text,
+    hand: p.hand.map((c) => ({ id: c.id, name: ACTIONS[c.id].name, icon: ACTIONS[c.id].icon, text: ACTIONS[c.id].text, short: ACTIONS[c.id].short,
       playable: mine && S.phase === 'guess' && canPlay(seat, c.id) })),
     tiles: S.tiles.map((t) => ({ k: t.kind, o: t.owner >= 0 ? slotOf(t.owner) : -1, v: t.value, ob: t.obs, b: t.bType, s: t.shield, f: t.fort, tr: t.trap === seat, t: mine && S.targets.includes(t) })),
     players: S.players.map((x) => ({ slot: x.slot, name: x.name, icon: CHARACTERS[x.char].icon, alive: x.alive, beacons: beaconCount(x.i), dom: Math.round(d[x.i] * 100) })),
@@ -1824,11 +1812,12 @@ let remoteInfo = { urls: [] };
 async function showLobby() {
   remoteCount = menuCount;
   try { remoteInfo = await (await fetch('/info')).json(); } catch { /* server unreachable: lobby shows no address */ }
-  showOverlay(`<div class="eyebrow center">The gathering</div><h2>Play with Phones</h2><p class="center" style="color:var(--muted)">This screen is the board. Join the same Wi-Fi and open the address on every phone.</p>
+  showOverlay(`<h2>Join with your phone</h2>
     <div class="lobby"><div class="qr" id="qr"></div><div><div class="url">${remoteInfo.urls[0] || 'no network address found'}</div>
-    ${remoteInfo.urls.slice(1).map((u) => `<div class="alt-url">${u}</div>`).join('')}
-    ${countPicker()}<div id="seats"></div></div></div>
-    <div class="btns"><button class="btn" id="goRemote" data-mode="remote">Start</button><button class="btn dark" data-reset>Free all seats</button><button class="btn dark" data-menu>Back</button></div>`, true);
+    ${remoteInfo.urls.length > 1 ? `<details class="alts"><summary>Other addresses</summary>${remoteInfo.urls.slice(1).map((u) => `<div class="alt-url">${u}</div>`).join('')}</details>` : ''}
+    <div id="seats"></div>${countPicker()}</div></div>
+    <div class="btns"><button class="btn" id="goRemote" data-mode="remote">Start</button><button class="btn dark" data-menu>Back</button></div>
+    <p class="center"><button class="linkbtn" data-reset>Free all seats</button></p>`, true);
   renderSeats(); pushLobby();
   if (remoteInfo.urls[0]) {
     window.qrcode || await new Promise((res) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'; sc.onload = sc.onerror = res; document.head.append(sc); });
@@ -1839,10 +1828,10 @@ function renderSeats() {
   const el = $('seats'); if (!el) return;
   const humans = remoteSeats.filter((s) => s.taken).length, ai = Math.max(0, remoteCount - humans);
   el.innerHTML = remoteSeats.map((s, i) => { const C = CHARACTERS[remoteChars[i]];
-    return `<div class="seat ${s.online ? 'on' : ''} ${s.taken ? '' : 'off'}" style="--pc:${PCSS[i]}"><i class="gem"></i>${COLOR_NAMES[i]}<span>${s.online ? 'connected' : s.taken ? 'connection lost' : 'free'}${C && s.taken ? ` · ${gl(C.icon)} ${C.name}` : s.taken ? ' · choosing a hero…' : ''}</span></div>`; }).join('')
-    + `<p style="font-size:13px;color:var(--muted);margin:8px 0 0">Every connected phone plays in the colour it picked${ai ? `; ${ai} AI rival${ai > 1 ? 's' : ''} fill${ai > 1 ? '' : 's'} up to ${remoteCount} players` : ''}.</p>`;
+    if (!s.taken) return '';
+    return `<div class="seat ${s.online ? 'on' : ''}" style="--pc:${PCSS[i]}"><i class="gem"></i>${COLOR_NAMES[i]}<span style="margin-left:auto">${!s.online ? 'offline' : C ? `${gl(C.icon)} ${C.name}` : 'choosing…'}</span></div>`; }).join('') || '<p class="center" style="color:var(--muted)">Waiting for phones…</p>';
   $('goRemote').disabled = humans === 0;
-  $('goRemote').textContent = humans ? `Start: ${humans} phone${humans > 1 ? 's' : ''}${ai ? ` + ${ai} AI` : ''}` : 'Waiting for a phone…';
+  $('goRemote').textContent = humans ? `Start${ai ? ` · +${ai} AI` : ''}` : 'Start';
 }
 if (REMOTE) {
   $('pipView').src = '/play?mirror=1';

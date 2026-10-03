@@ -50,6 +50,9 @@
   .msg { text-align: center; font: italic 14px/1.35 var(--body); color: #d5ccb7; min-height: 2.6em; }
   .heroline { font: 13px/1.4 var(--body); color: var(--muted); text-align: center; }
   .heroline b { font: 700 11px var(--display); letter-spacing: .08em; color: var(--gold-hi); }
+  .heroline summary { cursor: pointer; list-style: none; font: 700 10px var(--display); letter-spacing: .25em; text-transform: uppercase; color: var(--gold); }
+  .heroline summary::-webkit-details-marker { display: none; }
+  .heroline > div { margin-top: 6px; }
 
   .table { display: flex; align-items: center; justify-content: center; gap: 22px; }
   .card { width: 78px; height: 110px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font: 700 28px var(--display); color: #1a1610;
@@ -130,8 +133,7 @@
 <div class="wrap">
   <section id="join" class="join">
     <div class="logo" id="logo"></div><h1 class="title">Estate Assassins</h1>
-    <div class="eyebrow" style="margin:10px 0 4px">Choose your house</div>
-    <p style="color:var(--muted);margin:0 0 6px;font-style:italic">The big screen shows the board. Your phone is your hand.</p>
+    <div class="eyebrow" style="margin:12px 0 2px">Pick a colour</div>
     <div id="seatBtns"></div>
     <p id="joinNote" class="empty"></p>
   </section>
@@ -142,8 +144,8 @@
     <div class="rivals" id="rivals"></div>
     <div class="conn hidden" id="conn">Lost connection to the PC, reconnecting…</div>
     <div class="turn" id="turn">Waiting for the game to start…</div>
-    <div id="heroPick" class="hidden"><h3 style="margin-bottom:8px">Choose your hero</h3><div class="heroes" id="heroes"></div></div>
-    <div class="heroline" id="heroLine"></div>
+    <div id="heroPick" class="hidden"><div class="heroes" id="heroes"></div></div>
+    <details class="heroline" id="heroBox"><summary id="heroSum"></summary><div id="heroLine"></div></details>
     <div class="result hidden" id="result"></div>
     <div id="ingame">
       <div class="msg" id="msg"></div>
@@ -159,10 +161,10 @@
         <button class="btn dark wide super hidden" id="bSuper" data-k="super">Super</button>
         <button class="btn dark wide hidden" id="bCancel" data-k="cancel">Cancel card</button>
       </div>
-      <h3>Board <span id="boardHint" style="text-transform:none;letter-spacing:0"></span></h3>
+      <span id="boardHint" hidden></span>
       <div class="board" id="board"></div>
       <div class="legend" id="legend"></div>
-      <h3>Your action cards</h3>
+
       <div class="hand" id="hand"></div>
     </div>
     <div class="foot"><span id="seatLbl"></span><button id="leave">Change house</button></div>
@@ -255,23 +257,25 @@ function render() {
   if (s.lobby) {
     const mine = s.chars?.[seat];
     $('me').innerHTML = `<i class="gem"></i> House ${COLOR_NAMES[seat]}`; $('turn').className = 'turn';
-    $('turn').textContent = mine ? 'Ready! Waiting for the PC to start…' : 'Choose your hero below';
-    $('heroLine').textContent = ''; $('result').classList.add('hidden'); $('dom').innerHTML = ''; $('rivals').innerHTML = '';
+    $('turn').textContent = mine ? 'Ready' : 'Choose a hero';
+    $('heroBox').classList.add('hidden'); $('result').classList.add('hidden'); $('dom').innerHTML = ''; $('rivals').innerHTML = '';
     const box = $('heroes'); box.innerHTML = '';
     for (const h of s.heroes || []) {
       const takenBy = (s.chars || []).findIndex((x, i) => x === h.id && i !== seat);
       const b = document.createElement('button');
       b.className = 'hero' + (h.id === mine ? ' sel' : ''); b.style.setProperty('--hc', h.color);
       b.disabled = takenBy >= 0; b.dataset.k = 'hero:' + h.id;
-      b.innerHTML = `<span class="medal">${gl(h.icon)}</span><span class="hn">${h.name}<small>${takenBy >= 0 ? `taken by ${COLOR_NAMES[takenBy]}` : h.title}</small></span>
-        <span class="hp">${h.passive}</span><span class="hs">${gl(h.superIcon)} ${h.superName}: ${h.superText}</span>`;
+      b.innerHTML = `<span class="medal">${gl(h.icon)}</span><span class="hn">${h.name}${takenBy >= 0 ? `<small>${COLOR_NAMES[takenBy]}</small>` : ''}</span>
+        <span class="hp">${h.short}</span><span class="hs">${gl(h.superIcon)} ${h.superShort}</span>`;
       b.onclick = () => { sfx([[523, 0, .2], [784, .08, .3]]); buzz(30); cmd('char', { hero: h.id }); };
       box.append(b);
     }
     return;
   }
   $('me').innerHTML = `${gl(s.hero.icon)} ${esc(s.name)}`; $('status').innerHTML = goldify(s.status || '');
-  $('heroLine').innerHTML = `<b>Signature</b> ${esc(s.hero.passive)}<br>${s.perks.map((k) => `${gl(k.icon)} <b>${k.name}</b> ${esc(k.text)}`).join('<br>')}`;
+  $('heroBox').classList.remove('hidden');
+  $('heroSum').innerHTML = `${gl(s.hero.icon)} ${esc(s.hero.short)} · ${s.perks.map((k) => gl(k.icon)).join(' ')} ▾`;
+  $('heroLine').innerHTML = [`${gl(s.hero.icon)} ${esc(s.hero.passive)}`, ...s.perks.map((k) => `${gl(k.icon)} <b>${k.name}</b> ${esc(k.text)}`)].join('<br>');
   $('time').textContent = clock(s.elapsed);
   $('dom').innerHTML = s.players.map((p) => `<div style="width:${p.dom}%;background:${COLORS[p.slot]}"></div>`).join('');
   $('rivals').innerHTML = s.players.map((p) => `<span class="${p.alive ? '' : 'out'}" style="--pc:${COLORS[p.slot]}"><i class="gem"></i>${gl(p.icon)} ${p.dom}% · ${gl('💎')}${p.beacons}</span>`).join('');
@@ -288,15 +292,15 @@ function render() {
   $('peek').textContent = s.peek ? (MIRROR ? 'Secretly peeking at the next card…' : `Next card ${s.peek}`) : '';
   $('bLower').disabled = $('bHigher').disabled = busy || !s.canGuess;
   $('bCash').disabled = busy || !s.canCash;
-  $('bCash').textContent = s.myTurn && s.phase === 'claim' ? 'Tap a glowing tile' : `Claim · ${s.tokens}`;
+  $('bCash').textContent = s.myTurn && s.phase === 'claim' ? 'Tap a glowing tile' : 'Claim';
   $('bSuper').classList.toggle('hidden', s.superUsed || !s.alive);
-  $('bSuper').innerHTML = `${gl(s.hero.superIcon)} <b>${s.hero.superName}</b><br>${esc(s.hero.superText)}`;
+  $('bSuper').innerHTML = `${gl(s.hero.superIcon)} <b>Super</b> · ${esc(s.hero.superShort)}`;
   $('bSuper').disabled = busy || !s.canSuper;
   $('bCancel').classList.toggle('hidden', !s.canCancel);
   const targeting = s.myTurn && (s.phase === 'claim' || s.phase === 'target');
   $('boardHint').textContent = targeting ? '· tap a glowing tile' : '';
   const me = s.players.find((p) => p.slot === seat) || { beacons: 0 };
-  $('legend').innerHTML = `${gl('💎')} Beacons ${me.beacons}/${s.beaconsNeeded} · ${s.canAttack ? '<b style="color:var(--gold-hi)">rival shields are down</b>' : `HQ shields fall at ${s.beaconsNeeded}`}`;
+  $('legend').innerHTML = `${gl('💎')} ${me.beacons}/${s.beaconsNeeded}${s.canAttack ? ' · <b style="color:var(--gold-hi)">HQs open</b>' : ''}`;
 
   const cells = new Array(N * N);
   s.tiles.forEach((t, i) => { cells[displayIndex(i / N | 0, i % N)] = i; });
@@ -317,12 +321,12 @@ function render() {
   s.hand.forEach((c, idx) => {
     const b = document.createElement('button'); b.className = 'tcg' + (MIRROR ? ' back' : ''); b.dataset.k = 'hand:' + idx;
     // The mirror on the shared screen never reveals the hand to the rivals.
-    b.innerHTML = MIRROR ? `<span class="art">${gl('🂠')}</span><span class="nm">Action card</span><span class="tx">Hidden</span>` : `<span class="art">${gl(c.icon)}</span><span class="nm">${c.name}</span><span class="tx">${c.text}</span>`;
-    b.disabled = busy || !c.playable;
+    b.innerHTML = MIRROR ? `<span class="art">${gl('🂠')}</span><span class="nm">Action card</span><span class="tx">Hidden</span>` : `<span class="art">${gl(c.icon)}</span><span class="nm">${c.name}</span><span class="tx">${c.short}</span>`;
+    b.title = c.text; b.disabled = busy || !c.playable;
     b.onclick = () => cmd('play', { idx });
     hand.append(b);
   });
-  if (!s.hand.length) hand.innerHTML = '<div class="empty">Your hand is empty. Action cards lurk in the deck.</div>';
+  if (!s.hand.length) hand.innerHTML = '<div class="empty">No cards yet</div>';
 
   const res = $('result');
   res.classList.toggle('hidden', !s.over);
