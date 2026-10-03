@@ -1,6 +1,6 @@
 {
   "name": "estate-assassins",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Higher-or-lower card game about seizing property: coin flips, beacons, capture the HQ. 2-4 players, phones as controllers, Three.js board.",
   "type": "module",

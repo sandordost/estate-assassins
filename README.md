@@ -40,8 +40,8 @@ An internet connection is needed for Three.js (and for the QR code in the lobby)
    neutral); the last player standing wins.
 7. **Dominance.** House 1, shop 2, tower/HQ/Beacon 3. Hold 60% (2 players), 50% (3) or 45% (4) of all property
    value at the start of your turn to win.
-8. **No time limit.** The clock only shows how long the round has been going; a round ends by assassination or
-   dominance and usually takes about ten minutes.
+8. **No hard time limit.** A round ends by assassination or dominance and usually takes about ten minutes. To keep
+   long rounds from dragging, **every HQ shield falls after 12 minutes**, Beacons or not.
 
 ### Action cards
 

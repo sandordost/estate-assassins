@@ -85,6 +85,7 @@
   .pinfo.dead .nm { text-decoration: line-through; }
   @keyframes blink { 50% { opacity: .2; } }
   #center { text-align: center; padding-top: 1px; }
+  #timer.fallen { color: var(--blood-hi); text-shadow: 0 0 14px rgba(216,68,92,.5); }
   #timer { font: 700 22px/1 var(--display); letter-spacing: .12em; color: var(--gold-hi); text-shadow: 0 0 12px rgba(244,221,162,.25); }
   #dombar { display: flex; height: 7px; margin: 6px 4px 4px; background: #0a090e; box-shadow: 0 0 0 1px var(--gold-lo), 0 0 0 3px var(--ink); overflow: hidden; }
   #dombar > div { transition: width .4s; }
@@ -261,8 +262,9 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
+const SHIELD_FALL = 12 * 60; // after 12 minutes every HQ shield falls, so long rounds speed up towards the end
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
 const PCSS = ['#4f8dff', '#e24a5a', '#35c47f', '#f0b13c'];
 const PCOL = PCSS.map((c) => new THREE.Color(c));
@@ -999,7 +1001,7 @@ const passable = (t) => t.kind !== 'obstacle';
 const acrossObstacle = (pi, t) => neighbors(t).some((o) => o.kind === 'obstacle' && neighbors(o).some((n) => n.owner === pi));
 const beaconCount = (pi) => S.tiles.filter((t) => t.kind === 'beacon' && t.owner === pi).length;
 const beaconsNeeded = () => 2;
-const canAttackHQ = (pi) => beaconCount(pi) >= beaconsNeeded();
+const canAttackHQ = (pi) => S.shieldsDown || beaconCount(pi) >= beaconsNeeded();
 function claimTargets(pi) {
   const dragon = S.players[pi].char === 'dragon';
   return S.tiles.filter((t) => passable(t) && t.owner !== pi && t.shield === 0
@@ -1110,7 +1112,7 @@ function resolveChars(picks, n) {
   return out;
 }
 async function startGame(mode, n, picks = []) {
-  hideOverlay(); tweens.length = 0; SFX.start(); SFX.play('start');
+  hideOverlay(); tweens.length = 0; SFX.start(); SFX.play('start'); $('timer').classList.remove('fallen');
   n = Math.max(2, Math.min(MAX_PLAYERS, n | 0 || 2));
   let slots = [0, 1, 2, 3].slice(0, n);
   if (mode === 'remote') {
@@ -1589,6 +1591,7 @@ const RULES = `<ul>
   <li><b>Claim</b> a tile next to your land: heads wins it.</li>
   <li><b>Hold ${2} Beacons</b> ${gl('💎')} to drop rival HQ shields.</li>
   <li><b>Take an HQ</b> with 2× heads: that player is out.</li>
+  <li><b>After 12 minutes</b> all shields fall.</li>
   <li><b>Win</b> as the last house, or with ${Math.round(DOM_WIN[2] * 100)}% / ${Math.round(DOM_WIN[3] * 100)}% / ${Math.round(DOM_WIN[4] * 100)}% of all value (2 / 3 / 4 players).</li></ul>`;
 let menuCount = 2;
 function countPicker() {
@@ -1723,6 +1726,10 @@ function step() {
     });
     if (S.started && !S.over) {
       S.elapsed += dt;
+      if (!S.shieldsDown && S.elapsed >= SHIELD_FALL) {
+        S.shieldsDown = true; $('timer').classList.add('fallen');
+        SFX.play('eliminate'); say('All HQ shields have fallen!'); banner('Shields fall', 'var(--blood-hi)', 1600); updateUI();
+      }
       if ((uiTick += dt) > .25) { uiTick = 0; if ((remoteTick += .25) >= 1) { remoteTick = 0; pushRemote(); }
         $('timer').textContent = clock(S.elapsed); }
     }
