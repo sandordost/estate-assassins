@@ -171,6 +171,25 @@
   .perkrow .who { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 64px; font: 700 12px var(--display); letter-spacing: .08em; }
   .perkrow .who .art { font-size: 26px; }
   .perkrow .boon { font: 14px/1.7 var(--body); color: #d5ccb7; }
+  #drinkBox { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8; width: min(90vw, 340px); text-align: center; padding: 16px 20px;
+    box-shadow: 0 0 0 100vmax rgba(5,4,8,.55), 0 30px 80px #000; }
+  #drinkBox.hidden { display: none; }
+  #drinkBox .mug { font-size: 54px; line-height: 1; }
+  #drinkBox .who { margin-top: 8px; font: 700 18px var(--display); letter-spacing: .08em; }
+  #drinkBox .sips { font: 700 40px/1.1 var(--deco); color: var(--gold-hi); margin: 6px 0 2px; }
+  #drinkBox .why { font: italic 15px var(--body); color: var(--muted); margin-bottom: 14px; }
+  #drinkBox .wait { font: 700 11px var(--display); letter-spacing: .25em; text-transform: uppercase; color: var(--gold); animation: blink 1.4s infinite; }
+  #drinkBox .btn { width: 100%; }
+  .switch { display: inline-flex; align-items: center; gap: 12px; margin: 14px auto 0; padding: 6px 4px; background: none; border: 0;
+    font: 700 12px var(--display); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); }
+  .switch .track { position: relative; width: 46px; height: 24px; border-radius: 12px; background: #15121c; box-shadow: inset 0 0 0 1px var(--gold-lo); transition: background .2s; }
+  .switch .track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: left .2s, background .2s; }
+  .switch.on { color: var(--gold-hi); } .switch.on .track { background: linear-gradient(180deg, #6b5228, #3a2c14); }
+  .switch.on .track::after { left: 25px; background: var(--gold-hi); box-shadow: 0 0 10px rgba(244,221,162,.6); }
+  .namein { display: block; width: min(100%, 320px); margin: 4px auto 14px; padding: 11px 14px; border: 0; border-radius: 4px; text-align: center;
+    font: 700 16px var(--display); letter-spacing: .08em; color: var(--gold-hi); background: #0f0d14; box-shadow: inset 0 0 0 1px var(--gold-lo), 0 0 0 3px var(--ink), 0 0 0 4px rgba(210,174,107,.3); outline: none; }
+  .namein:focus { box-shadow: inset 0 0 0 1px var(--gold), 0 0 0 3px var(--ink), 0 0 0 4px var(--gold-lo), 0 0 14px rgba(244,221,162,.25); }
+  #turnlbl { font: 700 13px/1.2 var(--display) !important; letter-spacing: .1em !important; text-transform: none !important; color: var(--gold-hi) !important; display: flex; gap: 8px; align-items: center; justify-content: center; }
   .linkbtn { background: none; border: 0; color: var(--faint); font: 12px var(--body); text-decoration: underline; }
   details.alts summary { text-align: left; padding: 4px 0; font-size: 10px; color: var(--faint); }
 
@@ -248,6 +267,7 @@
   <div id="hand"></div>
 </div>
 <div id="pip"><div class="lbl" id="pipLbl"></div><div class="frame" id="pipFrame"><iframe id="pipView" title="Phone of the active player" tabindex="-1"></iframe></div></div>
+<div id="drinkBox" class="panel hidden"></div>
 <div id="banner"></div>
 <div id="tip"></div>
 <div id="overlay"></div>
@@ -262,7 +282,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
 const SHIELD_FALL = 12 * 60; // after 12 minutes every HQ shield falls, so long rounds speed up towards the end
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
@@ -309,6 +329,9 @@ const PERKS = {
 const PERK_IDS = Object.keys(PERKS);
 const hasPerk = (p, k) => p.perks.includes(k);
 const handMax = (p) => HAND_MAX + (p.char === 'duelist' ? 1 : 0) + (hasPerk(p, 'pockets') ? 1 : 0);
+// Player-entered names: letters, digits and simple punctuation only, so they are safe to show anywhere.
+const cleanName = (t) => String(t || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').trim().slice(0, 14);
+let drinkMode = (() => { try { return localStorage.getItem('ea-drink') === '1'; } catch { return false; } })();
 const clock = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 
 // 30 action cards in the double deck (Yu-Gi-Oh/Magic style: drawn into your hand, played on your turn).
@@ -415,6 +438,7 @@ const SFX = (() => {
     trap: (t) => { tone(1400, t, .08, { type: 'square', vol: .04 }); tone(700, t + .08, .25, { type: 'sawtooth', vol: .05, to: 300 }); },
     portal: (t) => { tone(300, t, .8, { type: 'sine', vol: .06, to: 1200 }); tone(450, t + .1, .7, { type: 'triangle', vol: .04, to: 1600 }); noise(t, .8, { freq: 2000, to: 8000, vol: .04, q: 5 }); },
     super_dragon: (t) => { tone(70, t, 1.2, { type: 'sawtooth', vol: .08, to: 45, attack: .2 }); noise(t + .2, 1.2, { freq: 300, to: 2500, vol: .2, q: .6, attack: .3 }); tone(220, t + .9, .6, { type: 'square', vol: .04, to: 110 }); },
+    drink: (t) => { for (let i = 0; i < 3; i++) { tone(320 - i * 40, t + i * .16, .14, { type: 'sine', vol: .07, to: 180 - i * 20 }); noise(t + i * .16, .08, { freq: 900, vol: .05, type: 'lowpass' }); } },
     tick: (t) => tone(1500, t, .05, { type: 'square', vol: .025 }),
     super_duelist: (t) => { arp(t, [523, 659, 784, 1047, 1319, 1568], .05, { type: 'triangle', vol: .06, dur: .5 }); for (let i = 0; i < 5; i++) noise(t + .3 + i * .07, .08, { freq: 5000, vol: .07 }); },
     super_warrior: (t) => { tone(80, t, 1.1, { type: 'sawtooth', vol: .07, to: 320, attack: .4 }); noise(t, 1.1, { freq: 200, to: 3000, vol: .12, q: .7, attack: .5 }); noise(t + 1.05, .6, { freq: 1200, to: 120, vol: .25, type: 'lowpass' }); tone(110, t + 1.05, .6, { type: 'sine', vol: .14, to: 50 }); },
@@ -1111,7 +1135,7 @@ function resolveChars(picks, n) {
   }
   return out;
 }
-async function startGame(mode, n, picks = []) {
+async function startGame(mode, n, picks = [], names = []) {
   hideOverlay(); tweens.length = 0; SFX.start(); SFX.play('start'); $('timer').classList.remove('fallen');
   n = Math.max(2, Math.min(MAX_PLAYERS, n | 0 || 2));
   let slots = [0, 1, 2, 3].slice(0, n);
@@ -1126,8 +1150,8 @@ async function startGame(mode, n, picks = []) {
   const humanSeat = (i) => mode === 'pvp' ? true : mode === 'ai' ? i === 0 && !AUTOPLAY : remoteSeats[slots[i]].taken;
   const players = chars.map((char, i) => ({ i, slot: slots[i], char, alive: true, ai: !humanSeat(i), hand: [], superUsed: false, ki: false,
     perks: shuffle([...PERK_IDS]).slice(0, 2), lucky: 0, sabotaged: 0, reroll: 0, double: false, equal: false, second: 0, wind: 0,
-    name: CHARACTERS[char].name + (!humanSeat(i) ? ' (AI)' : '') }));
-  S = { mode, n, cur: 0, turn: 0, turnId: 0, tokens: 0, claims: 0, phase: 'busy', elapsed: 0, started: false, over: false,
+    name: !humanSeat(i) ? CHARACTERS[char].name + ' (AI)' : cleanName(mode === 'remote' ? remoteNames[slots[i]] : names[i]) || CHARACTERS[char].name }));
+  S = { mode, n, names, drinking: drinkMode, paused: false, drinkFor: null, cur: 0, turn: 0, turnId: 0, tokens: 0, claims: 0, phase: 'busy', elapsed: 0, started: false, over: false,
     chars, players, playerBySlot: Object.fromEntries(slots.map((k, i) => [k, i])), tiles: [], deck: [], discard: [], current: null, peek: null, peek2: null, pending: null, targets: [], streak: 0 };
   if (curMesh) { pile.remove(curMesh); curMesh = null; }
   buildBoard(); buildDeck(); placeHeroes(); buildHud();
@@ -1197,8 +1221,9 @@ async function guess(dir) {
   }
   floatText(tie ? 'Equal = wrong' : 'Wrong!', where, '#d8445c'); SFX.play('wrong');
   say(`${cardLabel(next)} · wrong${S.tokens ? ', claims lost' : ''}`);
-  S.tokens = 0; updateUI();
+  const lost = S.tokens; S.tokens = 0; updateUI();
   await sleep(1000); if (dead(id)) return;
+  if (lost >= 2) { await drink(S.cur, lost >= 4 ? 2 : 1, `Lost ${lost} claims`); if (dead(id)) return; }
   endTurn();
 }
 
@@ -1214,17 +1239,17 @@ const tileName = (t) => t.kind === 'hq' ? `${S.players[t.owner]?.name ?? 'an'} H
 async function attemptClaim(t) {
   const p = S.players[S.cur], id = S.turnId;
   S.phase = 'busy'; setTargets([]); updateUI();
-  const need = t.kind === 'hq' ? (hasPerk(S.players[t.owner], 'bulwark') ? 3 : 2) : t.fort ? 2 : 1; let ok = true;
+  const need = t.kind === 'hq' ? (hasPerk(S.players[t.owner], 'bulwark') ? 3 : 2) : t.fort ? 2 : 1; let ok = true, ambushed = false, sabotaged = false;
   say(`${p.name} attacks ${tileName(t)}${need > 1 ? ` · ${need}× heads` : ''}`);
   if (t.trap >= 0 && t.trap === t.owner) {
-    t.trap = -1; ok = false; SFX.play('trap');
+    t.trap = -1; ok = false; ambushed = true; SFX.play('trap');
     await tween(.5, (k) => { t.content.position.y = TOP + Math.sin(k * Math.PI * 6) * .05 * (1 - k); });
     floatText('🕸️ Ambush!', t.pos.clone().add(new THREE.Vector3(0, .9, 0)), '#d8445c'); say('Ambush! Attack fails.');
   }
   for (let i = 0; i < need && ok; i++) {
     let heads = Math.random() < .5;
     if (p.ki) { p.ki = false; heads = true; say('Ki Blast: heads'); }
-    else if (p.sabotaged > 0) { p.sabotaged--; heads = false; say('Sabotaged!'); }
+    else if (p.sabotaged > 0) { p.sabotaged--; heads = false; sabotaged = true; say('Sabotaged!'); }
     else if (p.lucky > 0) { p.lucky--; heads = true; say('Golden Coin: heads'); }
     updateUI();
     ok = await flipCoin(t.pos.clone().add(new THREE.Vector3(0, .9, 0)), heads);
@@ -1240,6 +1265,7 @@ async function attemptClaim(t) {
     await setOwner(t, S.cur); if (dead(id)) return;
     if (wasHQ) { await eliminate(victim, S.cur, t); if (dead(id)) return; }
     else {
+      if (victim >= 0 && t.kind === 'beacon') { await drink(victim, 1, 'Lost a Beacon'); if (dead(id)) return; }
       SFX.play(victim >= 0 ? 'steal' : 'claim'); say(`${p.name} ${victim >= 0 ? 'steals' : 'takes'} ${tileName(t)}`);
       if (t.kind === 'beacon' && hasPerk(p, 'prospector')) { S.claims++; floatText('⛏️ +1 claim', t.pos.clone().add(new THREE.Vector3(0, 1.1, 0)), '#f4dda2'); }
       if (victim >= 0 && hasPerk(p, 'looter') && !S.looted && p.hand.length < handMax(p)) {
@@ -1247,7 +1273,11 @@ async function attemptClaim(t) {
         if (i >= 0) { S.looted = true; const [card] = S.deck.splice(i, 1); await showActionDraw(card, p.i); if (dead(id)) return; p.hand.push(card); updateUI(); }
       }
     }
-  } else { if (!/Ambush/.test($('msg').textContent)) say('Tails · failed'); SFX.play('fail'); }
+  } else {
+    if (!ambushed) say('Tails · failed'); SFX.play('fail');
+    const why = ambushed ? 'Walked into an ambush' : sabotaged ? 'Sabotaged' : t.kind === 'hq' ? 'Failed HQ attack' : '';
+    if (why) { await drink(p.i, 1, why); if (dead(id)) return; }
+  }
   await sleep(300); if (dead(id)) return;
   const ts = claimTargets(S.cur);
   if (S.claims > 0 && ts.length) { S.phase = 'claim'; setTargets(ts); updateUI(); if (p.ai) aiClaim(id); }
@@ -1263,10 +1293,37 @@ async function eliminate(victim, by, hqTile) {
   hqLights[victim] && (hqLights[victim].intensity = 0);
   if (heroSprites[victim]) heroSprites[victim].material.opacity = .2;
   if (alive().length === 1) return gameOver(by, 'flag');
+  await drink(victim, 2, 'Eliminated');
   SFX.play('eliminate');
   await banner(`${v.name} is eliminated!`, pcss(victim), 1300);
   say(`${v.name} is out`);
   buildHud(); updateUI();
+}
+
+// ---------- drinking mode ----------
+// A prompt halts the flow (and the clock) until the drinker confirms: on their phone, or on screen without phones.
+async function drink(pi, sips, reason) {
+  const p = S?.players[pi];
+  if (!S?.drinking || !p || p.ai) return;
+  S.paused = true; S.drinkFor = { pi, sips, reason };
+  SFX.play('drink'); say(`🍺 ${p.name}: ${sips} sip${sips > 1 ? 's' : ''}`);
+  showDrink(); pushRemote();
+  await new Promise((res) => { S.drinkResolve = res; });
+  S.paused = false; S.drinkFor = null; $('drinkBox').classList.add('hidden'); pushRemote(); updateUI();
+}
+function confirmDrink(pi) {
+  if (!S?.drinkFor || S.drinkFor.pi !== pi) return;
+  const r = S.drinkResolve; S.drinkResolve = null; SFX.play('save'); r?.();
+}
+function showDrink() {
+  const { pi, sips, reason } = S.drinkFor, p = S.players[pi];
+  const phone = S.mode === 'remote' && remoteSeats[p.slot]?.online;
+  $('drinkBox').style.setProperty('--pc', pcss(pi));
+  $('drinkBox').innerHTML = `<div class="mug">${gl('🍺')}</div><div class="who"><i class="gem"></i> ${p.name}</div>
+    <div class="sips">${sips} sip${sips > 1 ? 's' : ''}</div><div class="why">${reason}</div>
+    ${phone ? '<div class="wait">Confirm on your phone</div>' : `<button class="btn" id="drinkOk">Done</button>`}`;
+  $('drinkBox').classList.remove('hidden');
+  $('drinkOk')?.addEventListener('click', () => confirmDrink(pi));
 }
 
 // ---------- action cards ----------
@@ -1482,11 +1539,14 @@ function gameOver(winner, reason) {
   S.result = { title, why, winner };
   SFX.play(winner < 0 ? 'draw' : (S.mode === 'ai' && winner !== 0) ? 'lose' : 'win');
   const used = S.elapsed;
+  (async () => {
+    if (S.drinking) for (const p of S.players) if (p.i !== winner) await drink(p.i, 2, winner < 0 ? 'Nobody won' : 'Lost the game');
   showOverlay(`<div class="logo">${LOGO}</div><h2>${title}</h2>
     ${S.players.map((p) => `<div class="seat ${p.i === winner ? 'on' : ''} ${p.alive ? '' : 'off'}" style="--pc:${pcss(p.i)}"><i class="gem"></i>${gl(CHARACTERS[p.char].icon)} ${p.name}<span style="margin-left:auto">${d[p.i]}%</span></div>`).join('')}
     <p class="center" style="color:var(--muted)">${clock(used)}</p>
     <div class="btns"><button class="btn" data-again>Play again</button><button class="btn dark" data-menu>Menu</button></div>`);
   pushRemote();
+  })();
 }
 
 // ---------- UI ----------
@@ -1551,7 +1611,8 @@ function updateUI() {
   }
   const tl = S.elapsed;
   $('timer').textContent = clock(tl);
-  $('turnlbl').textContent = '';
+  const cp = S.players[S.cur];
+  $('turnlbl').innerHTML = S.over ? '' : `<i class="gem" style="--pc:${pcss(S.cur)}"></i> ${cp.name}${S.mode === 'ai' && !cp.ai ? ' (you)' : ''}${S.drinking ? ` <span title="Drinking mode">${gl('🍺')}</span>` : ''}`;
   const human = isHumanTurn(), guessing = human && S.phase === 'guess';
   $('bLower').disabled = $('bHigher').disabled = !guessing;
   $('bCash').disabled = !(guessing && S.tokens > 0);
@@ -1592,6 +1653,7 @@ const RULES = `<ul>
   <li><b>Hold ${2} Beacons</b> ${gl('💎')} to drop rival HQ shields.</li>
   <li><b>Take an HQ</b> with 2× heads: that player is out.</li>
   <li><b>After 12 minutes</b> all shields fall.</li>
+  <li><b>Drinking mode</b> ${gl('🍺')}: 1–2 sips for losing 2+ claims, losing a Beacon, a failed HQ attack, an ambush or sabotage; 2 when you are out or lose the game. The game waits until you press Done.</li>
   <li><b>Win</b> as the last house, or with ${Math.round(DOM_WIN[2] * 100)}% / ${Math.round(DOM_WIN[3] * 100)}% / ${Math.round(DOM_WIN[4] * 100)}% of all value (2 / 3 / 4 players).</li></ul>`;
 let menuCount = 2;
 function countPicker() {
@@ -1601,6 +1663,7 @@ function showMenu() {
   showOverlay(`<div class="logo">${LOGO}</div><h1 class="title">Estate Assassins</h1>
     ${countPicker()}
     <div class="btns"><button class="btn" data-mode="ai">Play vs AI</button>${REMOTE ? '<button class="btn" data-lobby>Phones</button>' : ''}<button class="btn dark" data-mode="pvp">Hot-seat</button></div>
+    ${drinkSwitch()}
     <details><summary>How to play</summary>${RULES}</details>`);
   document.body.classList.remove('remote', 'pipon'); resize();
   if (S?.mode === 'remote') { S.over = true; S = null; }
@@ -1625,25 +1688,29 @@ function perkReveal() {
   });
 }
 let charSelect = null;
-function showCharSelect(mode, n, picks = []) {
-  charSelect = { mode, n, picks };
+function showCharSelect(mode, n, picks = [], names = []) {
+  charSelect = { mode, n, picks, names };
   const seat = picks.length;
   showOverlay(`<h2 style="--pc:${PCSS[seat]}">${mode === 'ai' ? '' : '<i class="gem" style="margin-right:12px;vertical-align:middle"></i>'}${mode === 'ai' ? 'Choose your hero' : `${COLOR_NAMES[seat]}: choose a hero`}</h2>
+    <input class="namein" id="nameIn" maxlength="14" placeholder="${mode === 'ai' ? 'Your name' : `Player ${seat + 1} name`}" value="${mode === 'ai' ? esc(cleanName(store.get('ea-name'))) : ''}" autocomplete="off">
     ${heroCards(picks)}<div class="btns"><button class="btn dark" data-menu>Back</button></div>`, true);
 }
 function onCharPicked(id) {
   if (!charSelect) return;
-  const { mode, n, picks } = charSelect; picks.push(id);
+  const { mode, n, picks, names } = charSelect; picks.push(id);
+  const nm = cleanName($('nameIn')?.value) || (mode === 'ai' ? 'You' : `Player ${picks.length}`);
+  names.push(nm); if (mode === 'ai') store.set('ea-name', nm);
   SFX.play('super_' + id);
-  if (mode === 'pvp' && picks.length < n) showCharSelect(mode, n, picks);
-  else { charSelect = null; startGame(mode, n, picks); }
+  if (mode === 'pvp' && picks.length < n) showCharSelect(mode, n, picks, names);
+  else { charSelect = null; startGame(mode, n, picks, names); }
 }
 $('overlay').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.count) { menuCount = +b.dataset.count; b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); if (document.getElementById('seats')) { remoteCount = menuCount; renderSeats(); pushLobby(); } }
   else if (b.dataset.char) onCharPicked(b.dataset.char);
   else if (b.dataset.mode) b.dataset.mode === 'remote' ? startGame('remote', remoteCount) : showCharSelect(b.dataset.mode, menuCount);
-  else if (b.hasAttribute('data-again')) startGame(S.mode, S.n, S.chars);
+  else if (b.hasAttribute('data-again')) startGame(S.mode, S.n, S.chars, S.names);
+  else if (b.hasAttribute('data-drink')) { drinkMode = !drinkMode; store.set('ea-drink', drinkMode ? '1' : '0'); document.querySelectorAll('[data-drink]').forEach((x) => x.classList.toggle('on', drinkMode)); pushLobby(); }
   else if (b.hasAttribute('data-menu')) showMenu();
   else if (b.hasAttribute('data-lobby')) showLobby();
   else if (b.hasAttribute('data-close')) hideOverlay();
@@ -1658,6 +1725,7 @@ $('bCash').onclick = () => localInput() && cashIn();
 $('bSuper').onclick = () => localInput() && useSuper(S.cur);
 function cancelTarget() { if (S?.phase === 'target') { S.phase = 'guess'; S.pending = null; setTargets([]); updateUI(); } }
 $('bCancel').onclick = () => localInput() && cancelTarget();
+const drinkSwitch = () => `<div class="center"><button class="switch ${drinkMode ? 'on' : ''}" data-drink><span class="track"></span>${gl('🍺')} Drinking mode</button></div>`;
 const SPEAKER = (on) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>${on ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/>' : '<path d="M16 9l5 6M21 9l-5 6"/>'}</svg>`;
 $('mute').innerHTML = SPEAKER(!SFX.muted);
 $('mute').onclick = () => { $('mute').innerHTML = SPEAKER(!SFX.toggle()); };
@@ -1668,6 +1736,8 @@ function chooseTile(t) {
   else if (S.phase === 'target') { const idx = S.pending; S.pending = null; S.phase = 'guess'; setTargets([]); playCard(S.cur, idx, t); }
 }
 addEventListener('keydown', (e) => {
+  if (S?.drinkFor && e.key === 'Enter' && $('drinkOk')) { confirmDrink(S.drinkFor.pi); return; }
+  if (e.target.closest?.('input')) return;
   if (!localInput()) return;
   if (e.key === 'ArrowUp') guess('higher'); else if (e.key === 'ArrowDown') guess('lower');
   else if (e.key === 'Enter' || e.key === ' ') cashIn(); else if (e.key === 's' || e.key === 'S') useSuper(S.cur);
@@ -1724,7 +1794,7 @@ function step() {
       sp.position.y = sp.userData.base + (active ? Math.sin(elapsed * 3) * .1 : 0);
       sp.material.opacity = !p.alive ? .2 : active || !S.started ? 1 : .55;
     });
-    if (S.started && !S.over) {
+    if (S.started && !S.over && !S.paused) {
       S.elapsed += dt;
       if (!S.shieldsDown && S.elapsed >= SHIELD_FALL) {
         S.shieldsDown = true; $('timer').classList.add('fallen');
@@ -1741,10 +1811,10 @@ setInterval(() => { if (performance.now() - lastStep > 200) step(); }, 100);
 
 // ---------- phones as controllers (server.mjs) ----------
 let remoteSeats = Array.from({ length: MAX_PLAYERS }, () => ({ taken: false, online: false }));
-let remoteChars = [null, null, null, null], remoteCount = 2;
+let remoteChars = [null, null, null, null], remoteNames = [null, null, null, null], remoteCount = 2;
 function remoteState(slot) {
   const seat = S?.playerBySlot?.[slot];
-  if (!S || seat == null) return { lobby: true, seat: slot, chars: remoteChars, count: remoteCount, heroes: heroList() };
+  if (!S || seat == null) return { lobby: true, seat: slot, chars: remoteChars, count: remoteCount, heroes: heroList(), drinking: drinkMode };
   const p = S.players[seat], mine = S.cur === seat && !S.over && !p.ai, d = dominance();
   return {
     seat: slot, n: S.n, name: p.name, alive: p.alive, cur: S.cur, curName: S.players[S.cur].name, myTurn: mine, phase: S.phase,
@@ -1756,6 +1826,7 @@ function remoteState(slot) {
     players: S.players.map((x) => ({ slot: x.slot, name: x.name, icon: CHARACTERS[x.char].icon, alive: x.alive, beacons: beaconCount(x.i), dom: Math.round(d[x.i] * 100) })),
     beaconsNeeded: beaconsNeeded(), canAttack: canAttackHQ(seat),
     canGuess: mine && S.phase === 'guess', canCash: mine && S.phase === 'guess' && S.tokens > 0, canCancel: mine && S.phase === 'target',
+    drink: S.drinkFor?.pi === seat ? { sips: S.drinkFor.sips, reason: S.drinkFor.reason } : null, drinking: S.drinking,
     elapsed: Math.round(S.elapsed), status: statusIcons(p), perks: p.perks.map((k) => ({ ...PERKS[k] })),
     over: S.over, result: S.result ? { ...S.result, winner: S.result.winner >= 0 ? slotOf(S.result.winner) : -1 } : null,
     hero: { id: p.char, ...CHARACTERS[p.char], glow: undefined }, superUsed: p.superUsed, canSuper: mine && canSuper(seat),
@@ -1774,7 +1845,7 @@ function pushRemote() {
 }
 function pushLobby() {
   if (!REMOTE) return;
-  fetch('/state', { method: 'POST', body: JSON.stringify({ seats: [0, 1, 2, 3].map((seat) => ({ lobby: true, seat, chars: remoteChars, count: remoteCount, heroes: heroList() })) }) }).catch(() => {});
+  fetch('/state', { method: 'POST', body: JSON.stringify({ seats: [0, 1, 2, 3].map((seat) => ({ lobby: true, seat, chars: remoteChars, count: remoteCount, heroes: heroList(), drinking: drinkMode })) }) }).catch(() => {});
 }
 // Picture-in-picture: a read-only copy of the active player's phone, fed with the same state the phone gets.
 function updatePip() {
@@ -1799,6 +1870,8 @@ function handleRemote(c) {
     const m = /^tile:(\d+)$/.exec(String(c.k)); if (m && S.tiles[+m[1]]) S.tiles[+m[1]].touchT = elapsed;
     return;
   }
+  if (c.a === 'drank') { if (S?.mode === 'remote' && pi != null) confirmDrink(pi); return; }
+  if (c.a === 'name') { if (!(S?.mode === 'remote' && !S.over)) { remoteNames[c.seat] = cleanName(c.name) || null; renderSeats(); } return; }
   if (c.a === 'restart') { if (S?.mode === 'remote' && S.over) startGame('remote', S.n); return; }
   if (c.a === 'char') {
     if (S?.mode === 'remote' && !S.over) return;
@@ -1822,7 +1895,7 @@ async function showLobby() {
   showOverlay(`<h2>Join with your phone</h2>
     <div class="lobby"><div class="qr" id="qr"></div><div><div class="url">${remoteInfo.urls[0] || 'no network address found'}</div>
     ${remoteInfo.urls.length > 1 ? `<details class="alts"><summary>Other addresses</summary>${remoteInfo.urls.slice(1).map((u) => `<div class="alt-url">${u}</div>`).join('')}</details>` : ''}
-    <div id="seats"></div>${countPicker()}</div></div>
+    <div id="seats"></div>${countPicker()}${drinkSwitch()}</div></div>
     <div class="btns"><button class="btn" id="goRemote" data-mode="remote">Start</button><button class="btn dark" data-menu>Back</button></div>
     <p class="center"><button class="linkbtn" data-reset>Free all seats</button></p>`, true);
   renderSeats(); pushLobby();
@@ -1836,7 +1909,7 @@ function renderSeats() {
   const humans = remoteSeats.filter((s) => s.taken).length, ai = Math.max(0, remoteCount - humans);
   el.innerHTML = remoteSeats.map((s, i) => { const C = CHARACTERS[remoteChars[i]];
     if (!s.taken) return '';
-    return `<div class="seat ${s.online ? 'on' : ''}" style="--pc:${PCSS[i]}"><i class="gem"></i>${COLOR_NAMES[i]}<span style="margin-left:auto">${!s.online ? 'offline' : C ? `${gl(C.icon)} ${C.name}` : 'choosing…'}</span></div>`; }).join('') || '<p class="center" style="color:var(--muted)">Waiting for phones…</p>';
+    return `<div class="seat ${s.online ? 'on' : ''}" style="--pc:${PCSS[i]}"><i class="gem"></i>${remoteNames[i] || COLOR_NAMES[i]}<span style="margin-left:auto">${!s.online ? 'offline' : C ? `${gl(C.icon)} ${C.name}` : 'choosing…'}</span></div>`; }).join('') || '<p class="center" style="color:var(--muted)">Waiting for phones…</p>';
   $('goRemote').disabled = humans === 0;
   $('goRemote').textContent = humans ? `Start${ai ? ` · +${ai} AI` : ''}` : 'Start';
 }
@@ -1844,13 +1917,13 @@ if (REMOTE) {
   $('pipView').src = '/play?mirror=1';
   $('pipView').addEventListener('load', () => { fitPip(); updatePip(); });
   const es = new EventSource('/events?role=display');
-  es.addEventListener('seats', (e) => { const s = JSON.parse(e.data); remoteSeats = Array.from({ length: MAX_PLAYERS }, (_, i) => s[i] || { taken: false, online: false }); renderSeats(); if (S?.mode === 'remote') updateUI(); });
+  es.addEventListener('seats', (e) => { const s = JSON.parse(e.data); remoteSeats = Array.from({ length: MAX_PLAYERS }, (_, i) => s[i] || { taken: false, online: false }); renderSeats(); if (S?.mode === 'remote') { updateUI(); if (S.drinkFor) showDrink(); } });
   es.addEventListener('cmd', (e) => handleRemote(JSON.parse(e.data)));
   es.addEventListener('joined', () => (S?.mode === 'remote' ? pushRemote() : pushLobby()));
 }
 
 resize(); showMenu(); frame();
-window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame };
+window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame, drink };
 </script>
 </body>
 </html>

@@ -83,6 +83,22 @@ super per round.
 | 👁️ Mira, the Seer | Equal cards count as correct | **Third Eye**: see the next 2 playing cards |
 | 🐉 Zara, the Dragon Tamer | Tiles across an obstacle count as adjacent | **Dragon Breath**: burn every obstacle next to her land into neutral land |
 
+### Names and drinking mode
+
+Every player enters a name: in the hero screen (vs AI and hot-seat) or on their phone. The active player's name is
+always shown at the top of the board.
+
+Flip the **🍺 Drinking mode** switch in the menu or the phone lobby for a party round. The game pauses until the
+drinker presses **Done** (on their own phone, or on screen without phones); AI players never drink.
+
+| Event | Sips |
+| --- | --- |
+| Wrong guess that loses 2–3 claims / 4+ claims | 1 / 2 |
+| A rival steals your Beacon | 1 |
+| Your HQ attack fails, you walk into an Ambush, or you are sabotaged | 1 |
+| You are eliminated | 2 |
+| You lose the game | 2 |
+
 ### Boons
 
 At the start of every game each hero receives **two random Boons** on top of their signature power. Boons are

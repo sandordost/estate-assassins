@@ -119,6 +119,14 @@
   .foot { display: flex; justify-content: space-between; align-items: center; font: 600 11px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
   .foot button { background: none; color: var(--muted); text-decoration: underline; padding: 4px; font: inherit; letter-spacing: inherit; }
   .conn { font: italic 13px var(--body); text-align: center; color: var(--blood); }
+  .namein { display: block; width: 100%; margin: 6px 0 4px; padding: 14px; border: 0; border-radius: 4px; text-align: center;
+    font: 700 17px var(--display); letter-spacing: .08em; color: var(--gold-hi); background: #0f0d14; box-shadow: inset 0 0 0 1px var(--gold-lo), 0 0 0 3px var(--ink), 0 0 0 4px rgba(210,174,107,.3); outline: none; }
+  #drinkModal { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(5,4,8,.88); }
+  #drinkModal .box { width: 100%; max-width: 340px; text-align: center; padding: 18px; border: 14px solid transparent; border-image: var(--frame) 14 stretch; background: linear-gradient(180deg, #1c1826, #0f0d14) padding-box; }
+  #drinkModal .mug { font-size: 64px; line-height: 1; }
+  #drinkModal .sips { font: 700 46px/1.1 'Cinzel Decorative', var(--display); color: var(--gold-hi); margin: 10px 0 4px; }
+  #drinkModal .why { font: italic 16px var(--body); color: var(--muted); margin-bottom: 18px; }
+  #drinkModal .btn { width: 100%; font-size: 18px; padding: 18px; }
   /* Mirror: read-only copy shown picture-in-picture on the PC */
   .mirror button { pointer-events: none; }
   .mirror .foot { display: none; }
@@ -133,6 +141,7 @@
 <div class="wrap">
   <section id="join" class="join">
     <div class="logo" id="logo"></div><h1 class="title">Estate Assassins</h1>
+    <input class="namein" id="nameIn" maxlength="14" placeholder="Your name" autocomplete="off">
     <div class="eyebrow" style="margin:12px 0 2px">Pick a colour</div>
     <div id="seatBtns"></div>
     <p id="joinNote" class="empty"></p>
@@ -169,6 +178,8 @@
     </div>
     <div class="foot"><span id="seatLbl"></span><button id="leave">Change house</button></div>
   </section>
+  <div id="drinkModal" class="hidden"><div class="box"><div class="mug" id="dMug"></div><div class="sips" id="dSips"></div><div class="why" id="dWhy"></div>
+    <button class="btn" id="bDrank" data-k="drank">Done</button></div></div>
 </div>
 
 <script>
@@ -179,7 +190,7 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 let myId = store.get('ea-id');
 if (!myId) { myId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('ea-id', myId); }
 const MIRROR = new URLSearchParams(location.search).has('mirror');
-let seat = null, es = null, state = null, busy = false, wasMyTurn = false, wasOver = false;
+let seat = null, es = null, state = null, busy = false, wasMyTurn = false, wasOver = false, wasDrink = false;
 const ICON = { house: '🏠', shop: '🏪', tower: '🏢', ruin: '🏚️' };
 const OBS = { mountain: '⛰️', lake: '🌊', crystal: '🔮', wall: '🧱' };
 const EMOJI = /(\p{Extended_Pictographic}\uFE0F?)/gu;
@@ -219,11 +230,15 @@ async function refreshSeats() {
     b.onclick = () => join(i); box.append(b);
   });
 }
+const cleanName = (t) => String(t || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').trim().slice(0, 14);
+$('nameIn').value = cleanName(store.get('ea-name'));
+$('nameIn').addEventListener('input', () => store.set('ea-name', cleanName($('nameIn').value)));
+function sendName() { if (seat != null) fetch('/cmd', { method: 'POST', body: JSON.stringify({ seat, id: myId, a: 'name', name: cleanName(store.get('ea-name')) }) }).catch(() => {}); }
 function join(s) {
   seat = s; store.set('ea-seat', String(s)); setSeatColor(s);
   es?.close();
   es = new EventSource(`/events?role=player&seat=${s}&id=${encodeURIComponent(myId)}`);
-  es.addEventListener('joined', () => { $('join').classList.add('hidden'); $('game').classList.remove('hidden'); $('conn').classList.add('hidden'); });
+  es.addEventListener('joined', () => { $('join').classList.add('hidden'); $('game').classList.remove('hidden'); $('conn').classList.add('hidden'); sendName(); });
   es.addEventListener('state', (e) => { state = JSON.parse(e.data); busy = false; render(); });
   es.addEventListener('taken', () => { es.close(); showJoin('That colour is already taken by another phone.'); });
   es.addEventListener('kicked', () => { es.close(); store.set('ea-seat', ''); showJoin('The seats were freed on the PC. Pick again.'); });
@@ -253,12 +268,21 @@ function displayIndex(r, c) {
 
 function render() {
   const s = state; if (!s) return;
+  const dk = !s.lobby && s.drink;
+  $('drinkModal').classList.toggle('hidden', !dk);
+  if (dk) {
+    $('dMug').innerHTML = gl('🍺'); $('dSips').textContent = `${dk.sips} sip${dk.sips > 1 ? 's' : ''}`; $('dWhy').textContent = dk.reason; $('bDrank').disabled = busy;
+    if (!wasDrink) { buzz([120, 80, 120]); sfx([[330, 0, .15], [262, .16, .15], [220, .32, .25]], 'sine'); }
+  }
+  wasDrink = !!dk;
   $('heroPick').classList.toggle('hidden', !s.lobby); $('ingame').classList.toggle('hidden', !!s.lobby);
   if (s.lobby) {
     const mine = s.chars?.[seat];
-    $('me').innerHTML = `<i class="gem"></i> House ${COLOR_NAMES[seat]}`; $('turn').className = 'turn';
+    $('turn').className = 'turn';
+    $('me').innerHTML = `<i class="gem"></i> ${esc(cleanName(store.get('ea-name')) || `House ${COLOR_NAMES[seat]}`)}`;
     $('turn').textContent = mine ? 'Ready' : 'Choose a hero';
-    $('heroBox').classList.add('hidden'); $('result').classList.add('hidden'); $('dom').innerHTML = ''; $('rivals').innerHTML = '';
+    $('heroBox').classList.add('hidden'); $('result').classList.add('hidden'); $('dom').innerHTML = '';
+    $('rivals').innerHTML = s.drinking ? `<span>${gl('🍺')} Drinking mode on</span>` : '';
     const box = $('heroes'); box.innerHTML = '';
     for (const h of s.heroes || []) {
       const takenBy = (s.chars || []).findIndex((x, i) => x === h.id && i !== seat);
@@ -342,6 +366,7 @@ $('bLower').onclick = () => cmd('guess', { dir: 'lower' });
 $('bCash').onclick = () => cmd('cash');
 $('bCancel').onclick = () => cmd('cancel');
 $('bSuper').onclick = () => { buzz([40, 30, 120]); cmd('super'); };
+$('bDrank').onclick = () => cmd('drank');
 $('leave').onclick = async () => {
   try { await fetch('/leave', { method: 'POST', body: JSON.stringify({ seat, id: myId }) }); } catch { /* server gone */ }
   es?.close(); store.set('ea-seat', ''); showJoin();
