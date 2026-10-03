@@ -282,7 +282,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
 const SHIELD_FALL = 12 * 60; // after 12 minutes every HQ shield falls, so long rounds speed up towards the end
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
@@ -1223,7 +1223,7 @@ async function guess(dir) {
   say(`${cardLabel(next)} · wrong${S.tokens ? ', claims lost' : ''}`);
   const lost = S.tokens; S.tokens = 0; updateUI();
   await sleep(1000); if (dead(id)) return;
-  if (lost >= 2) { await drink(S.cur, lost >= 4 ? 2 : 1, `Lost ${lost} claims`); if (dead(id)) return; }
+  await drink(S.cur, lost >= 4 ? 3 : lost >= 2 ? 2 : 1, lost ? `Wrong guess · lost ${lost} claim${lost > 1 ? 's' : ''}` : 'Wrong guess'); if (dead(id)) return;
   endTurn();
 }
 
@@ -1292,8 +1292,9 @@ async function eliminate(victim, by, hqTile) {
   for (const t of S.tiles) if (t.owner === victim) { t.owner = -1; t.shield = 0; t.trap = -1; paintTile(t); }
   hqLights[victim] && (hqLights[victim].intensity = 0);
   if (heroSprites[victim]) heroSprites[victim].material.opacity = .2;
+  S.lastOut = victim;
   if (alive().length === 1) return gameOver(by, 'flag');
-  await drink(victim, 2, 'Eliminated');
+  await drink(victim, 5, 'Your HQ was taken');
   SFX.play('eliminate');
   await banner(`${v.name} is eliminated!`, pcss(victim), 1300);
   say(`${v.name} is out`);
@@ -1540,7 +1541,10 @@ function gameOver(winner, reason) {
   SFX.play(winner < 0 ? 'draw' : (S.mode === 'ai' && winner !== 0) ? 'lose' : 'win');
   const used = S.elapsed;
   (async () => {
-    if (S.drinking) for (const p of S.players) if (p.i !== winner) await drink(p.i, 2, winner < 0 ? 'Nobody won' : 'Lost the game');
+    if (S.drinking) for (const p of S.players) if (p.i !== winner) {
+      const tookHQ = reason === 'flag' && p.i === S.lastOut;
+      await drink(p.i, tookHQ ? 5 : 3, tookHQ ? 'Your HQ was taken' : winner < 0 ? 'Nobody won' : 'Lost the game');
+    }
   showOverlay(`<div class="logo">${LOGO}</div><h2>${title}</h2>
     ${S.players.map((p) => `<div class="seat ${p.i === winner ? 'on' : ''} ${p.alive ? '' : 'off'}" style="--pc:${pcss(p.i)}"><i class="gem"></i>${gl(CHARACTERS[p.char].icon)} ${p.name}<span style="margin-left:auto">${d[p.i]}%</span></div>`).join('')}
     <p class="center" style="color:var(--muted)">${clock(used)}</p>
@@ -1653,7 +1657,7 @@ const RULES = `<ul>
   <li><b>Hold ${2} Beacons</b> ${gl('💎')} to drop rival HQ shields.</li>
   <li><b>Take an HQ</b> with 2× heads: that player is out.</li>
   <li><b>After 12 minutes</b> all shields fall.</li>
-  <li><b>Drinking mode</b> ${gl('🍺')}: 1–2 sips for losing 2+ claims, losing a Beacon, a failed HQ attack, an ambush or sabotage; 2 when you are out or lose the game. The game waits until you press Done.</li>
+  <li><b>Drinking mode</b> ${gl('🍺')}: wrong guess 1 sip (2 if you lose 2+ claims, 3 if 4+); losing a Beacon, a failed HQ attack, an ambush or sabotage 1; losing your HQ 5; losing the game 3. The game waits until you press Done.</li>
   <li><b>Win</b> as the last house, or with ${Math.round(DOM_WIN[2] * 100)}% / ${Math.round(DOM_WIN[3] * 100)}% / ${Math.round(DOM_WIN[4] * 100)}% of all value (2 / 3 / 4 players).</li></ul>`;
 let menuCount = 2;
 function countPicker() {

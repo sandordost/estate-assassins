@@ -93,11 +93,12 @@ drinker presses **Done** (on their own phone, or on screen without phones); AI p
 
 | Event | Sips |
 | --- | --- |
-| Wrong guess that loses 2–3 claims / 4+ claims | 1 / 2 |
+| Wrong guess (turn over) | 1 |
+| … that loses 2–3 claims / 4+ claims | 2 / 3 |
 | A rival steals your Beacon | 1 |
 | Your HQ attack fails, you walk into an Ambush, or you are sabotaged | 1 |
-| You are eliminated | 2 |
-| You lose the game | 2 |
+| Your HQ is taken | 5 |
+| You lose the game | 3 |
 
 ### Boons
 
