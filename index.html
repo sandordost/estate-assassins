@@ -117,11 +117,12 @@
     box-shadow: inset 0 0 0 1px var(--gold-lo), inset 0 0 0 4px #141119, inset 0 0 0 5px rgba(210,174,107,.35), 0 6px 14px #000b;
     transition: transform .15s, box-shadow .15s; }
   .tcg:not(:disabled):hover { transform: translateY(-6px); box-shadow: inset 0 0 0 1px var(--gold), inset 0 0 0 4px #141119, inset 0 0 0 5px var(--gold-lo), 0 0 20px rgba(244,221,162,.3), 0 10px 18px #000b; }
-  .tcg:disabled { filter: grayscale(.8) brightness(.6); cursor: default; }
-  .tcg .art { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 21px; flex: none;
+  .tcg:disabled { filter: saturate(.75) brightness(.92); cursor: default; }
+  .tcg .art { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 25px; flex: none;
     background: radial-gradient(circle at 40% 35%, #3a3246, #120f18); box-shadow: 0 0 0 1px var(--gold), 0 0 0 3px #120f18, 0 0 0 4px var(--gold-lo); }
   .tcg .nm { font: 700 10.5px/1.15 var(--display); letter-spacing: .06em; color: var(--gold-hi); text-transform: uppercase; }
-  .tcg .tx { font: 11px/1.2 var(--body); color: #cfc5b0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .tcg .art .glyph { filter: grayscale(1) sepia(1) saturate(3) hue-rotate(-10deg) brightness(1.45) contrast(1.05) drop-shadow(0 0 6px rgba(244,221,162,.55)); }
+  .tcg .tx { font: 11.5px/1.2 var(--body); color: #e3dac6; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
   .tcg.back { background: repeating-linear-gradient(45deg, #1a1622 0 7px, #221d2c 7px 14px); }
 
   /* ---- overlays ---- */
@@ -285,7 +286,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 // ---------- constants ----------
 const $ = (id) => document.getElementById(id);
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const N = 6, SP = 1.12, HAND_MAX = 5, MAX_PLAYERS = 4;
 const SHIELD_FALL = 12 * 60; // after 12 minutes every HQ shield falls, so long rounds speed up towards the end
 const DOM_WIN = { 2: .6, 3: .5, 4: .45 };
@@ -623,6 +624,7 @@ const warm = new THREE.PointLight(0xffb070, 10, 14, 1.6); warm.position.set(0, 3
 const hqLights = [];
 
 const floaters = [];
+let shake = 0; const camBase = new THREE.Vector3();
 const island = new THREE.Group(); scene.add(island);
 {
   const W = N * SP + .7;
@@ -658,7 +660,7 @@ function resize() {
   const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   const dist = Math.max(10.6 / (2 * tan), 9.0 / (2 * tan * camera.aspect)) * 1.02;
   camera.position.copy(camTarget).addScaledVector(camDir, dist);
-  camera.lookAt(camTarget); camera.updateProjectionMatrix();
+  camera.lookAt(camTarget); camera.updateProjectionMatrix(); camBase.copy(camera.position);
 }
 addEventListener('resize', resize);
 
@@ -771,8 +773,9 @@ async function showActionDraw(card, pi) {
   SFX.play('draw_action');
   await tween(.45, (k) => { m.position.set(DECK_X * (1 - k), 0, .05 + k * 1.4); m.rotation.y = Math.PI * (1 - k); m.scale.setScalar(1 + k * .25); });
   await sleep(human ? 700 : 350);
-  const dir = heroSpritePos(pi);
-  await tween(.35, (k) => { m.position.x = dir.x * .4 * k; m.position.y = (dir.z > 0 ? -3 : 4) * k; m.scale.setScalar(1.25 - k); });
+  const dest = pile.worldToLocal(heroWorld(pi)), start = m.position.clone();
+  await tween(.45, (k) => { m.position.lerpVectors(start, dest, k); m.scale.setScalar(1.25 - k * 1.05); });
+  burst(heroWorld(pi), pcol(pi).getHex(), 24, { speed: 1.4, up: .8, life: .7 });
   pile.remove(m);
 }
 
@@ -904,9 +907,9 @@ function buildCrystals(g) {
   }
 }
 function buildWall(g) {
-  for (let i = -1; i <= 1; i++) g.add(mesh(new THREE.BoxGeometry(.3, .32, .26), MAT.wallStone, i * .3, .16, 0));
-  for (let i = -2; i <= 2; i++) { const s = mesh(new THREE.ConeGeometry(.04, .22, 4), MAT.metal, i * .18, .42, 0); g.add(s); }
-  g.add(mesh(new THREE.BoxGeometry(.9, .06, .3), MAT.wallStone, 0, .33, 0));
+  // two staggered courses of stone with battlements on top, so a new wall can visibly be stacked block by block
+  for (let row = 0; row < 2; row++) for (let i = -1; i <= 1; i++) g.add(mesh(new THREE.BoxGeometry(.3, .19, .28), MAT.wallStone, i * .31 + (row ? .04 : -.04), .095 + row * .2, 0));
+  for (let i = -1; i <= 1; i++) g.add(mesh(new THREE.BoxGeometry(.15, .13, .28), MAT.wallStone, i * .31, .465, 0));
 }
 
 const flags = [], spinners = [], blinkers = [];
@@ -1000,6 +1003,7 @@ function paintTile(t) {
   t.glow.material.uniforms.uColor.value.copy(own ? pcol(t.owner) : new THREE.Color(.8, .85, 1));
   t.glow.material.uniforms.uStrength.value = own ? .75 : .1;
   t.dome.visible = t.shield > 0;
+  if (t.fort) rampart(t).visible = true; else if (t.rampart) t.rampart.visible = false;
   if (t.kind === 'beacon') {
     const c = own ? pcol(t.owner) : new THREE.Color(0xbfe6ff);
     t.content.userData.crystal?.material.color.copy(c); t.content.userData.crystal?.material.emissive.copy(c);
@@ -1330,6 +1334,181 @@ function showDrink() {
   $('drinkOk')?.addEventListener('click', () => confirmDrink(pi));
 }
 
+// ---------- card effects ----------
+// Every played action card is shown big in the middle of the screen, then plays its own effect on the board.
+const fxGroup = new THREE.Group(); scene.add(fxGroup);
+const dotTex = canvasTex('dot', 64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+const bursts = [];
+function burst(pos, color, n = 40, o = {}) {
+  const { speed = 2.2, up = 1.6, size = .14, life = 1, gravity = 4, additive = true } = o;
+  const geo = new THREE.BufferGeometry(), pa = new Float32Array(n * 3), v = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    pa.set([pos.x, pos.y, pos.z], i * 3);
+    const d = new THREE.Vector3().randomDirection().multiplyScalar(speed * (.35 + Math.random() * .65));
+    v.set([d.x, Math.abs(d.y) * .6 + up * Math.random(), d.z], i * 3);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pa, 3));
+  const mat = new THREE.PointsMaterial({ color, size, map: dotTex, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending });
+  const pts = new THREE.Points(geo, mat); fxGroup.add(pts); bursts.push({ pts, v, t: 0, life, gravity });
+}
+function updateFx(dt) {
+  for (let i = bursts.length - 1; i >= 0; i--) {
+    const b = bursts[i]; b.t += dt; const a = b.pts.geometry.attributes.position;
+    for (let k = 0; k < a.count; k++) { b.v[k * 3 + 1] -= b.gravity * dt; a.array[k * 3] += b.v[k * 3] * dt; a.array[k * 3 + 1] += b.v[k * 3 + 1] * dt; a.array[k * 3 + 2] += b.v[k * 3 + 2] * dt; }
+    a.needsUpdate = true; b.pts.material.opacity = Math.max(0, 1 - b.t / b.life);
+    if (b.t >= b.life) { fxGroup.remove(b.pts); b.pts.geometry.dispose(); b.pts.material.dispose(); bursts.splice(i, 1); }
+  }
+  if (shake > 0) { camera.position.copy(camBase).add(new THREE.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, (Math.random() - .5) * shake)); shake = Math.max(0, shake - dt * .9); if (!shake) camera.position.copy(camBase); }
+}
+const tileWorld = (t, y = 0) => t.group.localToWorld(new THREE.Vector3(0, TOP + y, 0));
+const heroWorld = (pi) => heroSprites[pi]?.position.clone() ?? new THREE.Vector3(0, 1, 4);
+function flash(pos, color, peak = 70, dur = .55) {
+  const l = new THREE.PointLight(color, 0, 7, 1.5); l.position.copy(pos); fxGroup.add(l);
+  tween(dur, (k) => { l.intensity = Math.sin(k * Math.PI) * peak; }).then(() => fxGroup.remove(l));
+}
+function glyphSprite(emoji, pos, scale = 1) {
+  const tex = canvasTex('glyph' + emoji, 128, 128, (g) => { g.textAlign = 'center'; g.textBaseline = 'middle'; g.filter = GOLD_FILTER; g.font = '96px serif'; g.fillText(emoji, 64, 70); });
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); sp.position.copy(pos); sp.scale.setScalar(scale); fxGroup.add(sp); return sp;
+}
+async function floatGlyph(emoji, pos, color = 0xf4dda2) {
+  const sp = glyphSprite(emoji, pos, .2); burst(pos, color, 40, { speed: 1.8, up: 1.4, life: 1 }); flash(pos, color, 30);
+  await tween(1, (k) => { sp.position.y = pos.y + k * 1; sp.scale.setScalar(.2 + Math.sin(Math.min(1, k * 1.6) * Math.PI / 2) * 1.1); sp.material.opacity = k < .7 ? 1 : (1 - k) / .3; });
+  fxGroup.remove(sp);
+}
+// Drops every part of a tile's content into place, one by one, with a puff of dust.
+async function animateBuild(t, parts = [...t.content.children], height = 1.6, step = .15) {
+  parts.forEach((c) => { c.userData.y0 = c.position.y; c.position.y += height; c.visible = false; });
+  for (const c of parts) {
+    c.visible = true;
+    await tween(step, (k) => { c.position.y = c.userData.y0 + height * (1 - k) * (1 - k); }, (k) => k);
+    burst(tileWorld(t, .05), 0xb9a88f, 8, { speed: .9, up: .5, size: .1, life: .6, additive: false });
+  }
+}
+// The played card rises from its owner to the centre of the screen, glows, then flies to where it takes effect.
+async function revealPlayedCard(card, pi, dest) {
+  const g = new THREE.Group();
+  const face = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: faceTex(card), transparent: true, alphaTest: .5, toneMapped: false }));
+  const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex(), transparent: true, alphaTest: .5, toneMapped: false })); back.rotation.y = Math.PI;
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex, color: pcol(pi), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  glow.scale.set(4.2, 4.2, 1); glow.position.z = -.08;
+  const spin = new THREE.Group(); spin.add(glow, face, back); g.add(spin); fxGroup.add(g);
+  const dir = camTarget.clone().sub(camera.position).normalize();
+  const centre = camera.position.clone().addScaledVector(dir, 7).add(new THREE.Vector3(0, .35, 0));
+  const from = heroWorld(pi);
+  g.quaternion.copy(camera.quaternion);
+  burst(centre, pcol(pi).getHex(), 50, { speed: 2.4, up: .5, gravity: 0, life: .9 });
+  await tween(.5, (k) => { g.position.lerpVectors(from, centre, k); g.scale.setScalar(.25 + .85 * k); spin.rotation.y = Math.PI * (1 - k); });
+  burst(centre, 0xf4dda2, 60, { speed: 3, up: .3, gravity: 0, size: .12, life: .8 });
+  await tween(.85, (k) => { glow.material.opacity = .65 + Math.sin(k * Math.PI * 3) * .35; g.scale.setScalar(1.1 + Math.sin(k * Math.PI) * .05); });
+  const end = dest ?? from;
+  await tween(.35, (k) => { g.position.lerpVectors(centre, end, k); g.scale.setScalar(1.1 * (1 - k * .85)); face.material.opacity = back.material.opacity = 1 - k * .7; }, (k) => k * k);
+  fxGroup.remove(g);
+}
+async function demolishFx(t, color = 0xff8a3a) {
+  const pos = tileWorld(t, .35);
+  flash(pos, color, 90); shake = .2; SFX.play('boom');
+  burst(pos, color, 70, { speed: 3.2, up: 2.6, life: 1 });
+  burst(pos, 0x6b6478, 45, { speed: 2.6, up: 2.2, size: .17, life: 1.2, gravity: 7, additive: false });
+  await tween(.3, (k) => { t.content.scale.setScalar(Math.max(.01, 1 - k)); t.content.rotation.y = k * 2; });
+  Object.assign(t, { kind: 'land', obs: null, bType: 'house', value: 1, owner: -1, fort: false, trap: -1, shield: 0 });
+  buildContent(t); paintTile(t); t.content.rotation.y = 0; t.content.scale.setScalar(1);
+  await animateBuild(t, undefined, 1); updateUI();
+}
+async function wallFx(t) {
+  SFX.play('wall');
+  await tween(.25, (k) => t.content.scale.setScalar(Math.max(.01, 1 - k)));
+  Object.assign(t, { kind: 'obstacle', obs: 'wall', bType: null, owner: -1, fort: false, trap: -1, shield: 0 });
+  buildContent(t); paintTile(t); t.content.scale.setScalar(1);
+  await animateBuild(t, undefined, 1.8, .11); shake = .07; updateUI();
+}
+async function bridgeFx(pi, t) {
+  const o = neighbors(t).find((x) => x.kind === 'obstacle' && neighbors(x).some((n) => n.owner === pi));
+  const src = o && neighbors(o).find((n) => n.owner === pi);
+  if (!src) return () => {};
+  const a = tileWorld(src, .12), m = tileWorld(o, 1), c = tileWorld(t, .12);
+  const bez = (k) => a.clone().multiplyScalar((1 - k) ** 2).add(m.clone().multiplyScalar(2 * (1 - k) * k)).add(c.clone().multiplyScalar(k * k));
+  const mat = MAT.wood.clone(); mat.transparent = true;
+  const planks = [];
+  for (let i = 0; i < 11; i++) {
+    const k = i / 10, pl = new THREE.Mesh(new THREE.BoxGeometry(.4, .04, .1), mat);
+    pl.position.copy(bez(k)); pl.lookAt(bez(Math.min(1, k + .05))); if (k === 1) pl.lookAt(c.clone().add(c.clone().sub(bez(.95)))); pl.scale.setScalar(.01); fxGroup.add(pl); planks.push(pl);
+  }
+  for (const pl of planks) { SFX.play('click'); await tween(.07, (k) => pl.scale.setScalar(Math.max(.01, k))); }
+  burst(c, 0xf4dda2, 30, { speed: 1.5, up: 1 });
+  return () => tween(.6, (k) => { mat.opacity = 1 - k; }).then(() => planks.forEach((pl) => fxGroup.remove(pl)));
+}
+async function portalFx(t) {
+  const pos = tileWorld(t, .7);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.45, .05, 12, 48), new THREE.MeshStandardMaterial({ color: 0xa47bff, emissive: 0x8a5cff, emissiveIntensity: 3.2 }));
+  ring.position.copy(pos); ring.quaternion.copy(camera.quaternion); fxGroup.add(ring);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(.42, 40), new THREE.MeshBasicMaterial({ color: 0x6a3cff, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }));
+  ring.add(disc); SFX.play('portal'); flash(pos, 0x8a5cff, 60, 1.2);
+  await tween(.6, (k) => { ring.scale.setScalar(Math.max(.01, k * 1.1)); ring.rotation.z = k * 6; });
+  burst(pos, 0xb48cff, 60, { speed: 2, up: .4, gravity: -1, life: 1 });
+  return () => tween(.45, (k) => { ring.scale.setScalar(Math.max(.01, 1.1 * (1 - k))); ring.rotation.z += .2; }).then(() => fxGroup.remove(ring));
+}
+async function beamFx(t, color = 0xf4dda2) {
+  const pos = tileWorld(t, 0);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, 6, 24, 1, true), beamMaterial(color)); beam.position.copy(pos).add(new THREE.Vector3(0, 3, 0)); fxGroup.add(beam);
+  flash(pos.clone().add(new THREE.Vector3(0, .5, 0)), color, 70);
+  await tween(.35, (k) => { beam.scale.set(Math.max(.01, k), 1, Math.max(.01, k)); });
+  burst(pos.clone().add(new THREE.Vector3(0, .3, 0)), color, 50, { speed: 2, up: 2 });
+  tween(.5, (k) => beam.scale.set(Math.max(.01, 1 - k), 1, Math.max(.01, 1 - k))).then(() => fxGroup.remove(beam));
+}
+async function shieldFx(t) {
+  t.dome.visible = true; const pos = tileWorld(t, .3);
+  burst(pos, 0x7fe3ff, 50, { speed: 2.2, up: 1, life: .9 }); flash(pos, 0x5fd0ff, 50);
+  await tween(.45, (k) => t.dome.scale.setScalar(Math.max(.01, k < .7 ? k / .7 * 1.2 : 1.2 - (k - .7) / .3 * .2)));
+}
+function rampart(t) {
+  if (t.rampart) return t.rampart;
+  const g = new THREE.Group(); g.position.y = TOP;
+  for (const [x, z, w, d] of [[0, .46, .96, .08], [0, -.46, .96, .08], [.46, 0, .08, .96], [-.46, 0, .08, .96]]) g.add(mesh(new THREE.BoxGeometry(w, .14, d), MAT.wallStone, x, .07, z));
+  for (const [x, z] of [[.46, .46], [-.46, .46], [.46, -.46], [-.46, -.46]]) g.add(mesh(new THREE.BoxGeometry(.13, .24, .13), MAT.wallStone, x, .12, z));
+  t.group.add(g); t.rampart = g; return g;
+}
+async function fortifyFx(t) {
+  const g = rampart(t); g.visible = true; SFX.play('wall');
+  g.children.forEach((c) => { c.userData.y0 = c.position.y; c.position.y -= .3; });
+  await tween(.6, (k) => g.children.forEach((c) => { c.position.y = c.userData.y0 - .3 * (1 - k); }));
+  burst(tileWorld(t, .1), 0xb9a88f, 24, { speed: 1.2, up: .6, size: .1, additive: false });
+}
+async function quakeFx(t) {
+  SFX.play('quake'); shake = .28;
+  const pos = tileWorld(t, .1);
+  burst(pos, 0x8a7458, 50, { speed: 2, up: 1.2, size: .16, additive: false, life: 1.1 });
+  await tween(.7, (k) => { t.content.position.x = Math.sin(k * 50) * .08 * (1 - k); t.content.rotation.z = Math.sin(k * 40) * .1 * (1 - k); });
+  t.content.rotation.z = 0;
+}
+async function boulderFx(t) {
+  const o = neighbors(t).find((x) => x.kind === 'obstacle') || t;
+  const from = tileWorld(o, .9), to = tileWorld(t, .25);
+  const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(.24, 0), new THREE.MeshStandardMaterial({ color: 0xd8dde8, roughness: .8, flatShading: true }));
+  rock.position.copy(from); fxGroup.add(rock);
+  await tween(.55, (k) => { rock.position.lerpVectors(from, to, k); rock.position.y += Math.sin(k * Math.PI) * .3; rock.rotation.x += .3; rock.rotation.z += .2; }, (k) => k * k);
+  burst(to, 0xeef2ff, 40, { speed: 1.8, up: 1, size: .13, additive: false }); shake = .1; fxGroup.remove(rock);
+}
+async function bombFx(victim) {
+  const to = heroWorld(victim), from = to.clone().add(new THREE.Vector3(0, 3, 0));
+  const sp = glyphSprite('💣', from, .9);
+  await tween(.5, (k) => { sp.position.lerpVectors(from, to, k); sp.material.rotation = k * 3; }, (k) => k * k);
+  fxGroup.remove(sp); SFX.play('boom'); flash(to, 0xff5a2a, 90); shake = .2;
+  burst(to, 0xff7a3a, 70, { speed: 3, up: 1.5 }); burst(to, 0x3a3340, 30, { speed: 2, up: 1, additive: false, size: .18 });
+}
+async function stealFx(victim, thief) {
+  const from = heroWorld(victim), to = heroWorld(thief);
+  const c = makeCard({ kind: 'action', id: 'steal' }, false); c.scale.setScalar(.45); c.quaternion.copy(camera.quaternion); fxGroup.add(c);
+  await tween(.7, (k) => { c.position.lerpVectors(from, to, k); c.position.y += Math.sin(k * Math.PI) * 1.2; }, easeInOut);
+  burst(to, 0xf4dda2, 30, { speed: 1.5 }); fxGroup.remove(c);
+}
+// Visual destination of the revealed card: the tile it changes, or the hero it helps.
+function cardDest(id, pi, target) {
+  if (target && id !== 'ambush') return tileWorld(target, .4);
+  if (id === 'sabotage') { const l = leaderRival(pi); if (l) return heroWorld(l.i); }
+  if (id === 'swap' || id === 'peek') return pile.localToWorld(new THREE.Vector3(DECK_X, 0, .2));
+  return heroWorld(pi);
+}
+
 // ---------- action cards ----------
 function cardTargets(pi, kind) {
   const own = S.tiles.filter((t) => t.owner === pi);
@@ -1369,39 +1548,39 @@ async function playCard(pi, idx, target) {
   }
   p.hand.splice(idx, 1); S.discard.push(card); S.phase = 'busy'; updateUI();
   SFX.play('cast');
-  await banner(`${A.icon} ${A.name}`, '#f4dda2', 700);
-  if (dead(id)) return;
   say(`${p.name} plays ${A.name}`);
-  const leader = leaderRival(pi);
+  await revealPlayedCard(card, pi, cardDest(card.id, pi, target));
+  if (dead(id)) return;
+  const leader = leaderRival(pi), at = heroWorld(pi).add(new THREE.Vector3(0, .3, 0));
   switch (card.id) {
-    case 'lucky': p.lucky++; break;
-    case 'peek': S.peek = peekNext(1)[0]; S.peek2 = null; break;
-    case 'double': p.double = true; break;
-    case 'equal': p.equal = true; break;
-    case 'second': p.second++; break;
-    case 'greed': S.tokens++; SFX.play('correct', 1); break;
-    case 'reroll': p.reroll++; break;
-    case 'sabotage': if (leader) { leader.sabotaged++; say(`${leader.name} sabotaged`); SFX.play('boom'); } break;
-    case 'shield': target.shield = 2 * (alive().length - 1); paintTile(target); SFX.play('shield'); break;
-    case 'fortify': target.fort = true; SFX.play('shield'); floatText('🏰 Fortress', target.pos.clone().add(new THREE.Vector3(0, 1, 0)), '#f4dda2'); break;
-    case 'ambush': target.trap = pi; SFX.play('trap'); break;
-    case 'takeover': case 'bridge': case 'portal':
-      SFX.play(card.id === 'portal' ? 'portal' : 'claim'); await setOwner(target, pi); break;
-    case 'demolish': SFX.play('boom'); await transform(target, 'land', { bType: 'house', value: 1, owner: -1 }); break;
-    case 'wall': SFX.play('wall'); await transform(target, 'obstacle', { obs: 'wall', owner: -1 }); break;
+    case 'lucky': p.lucky++; await floatGlyph('🪙', at); break;
+    case 'peek': S.peek = peekNext(1)[0]; S.peek2 = null; await floatGlyph('🔭', pile.localToWorld(new THREE.Vector3(DECK_X, .6, .3))); break;
+    case 'double': p.double = true; await floatGlyph('⚡', at, 0xfff0a0); break;
+    case 'equal': p.equal = true; await floatGlyph('⚖️', at); break;
+    case 'second': p.second++; await floatGlyph('🍀', at, 0xbff5c8); break;
+    case 'greed': S.tokens++; SFX.play('correct', 1); await floatGlyph('💰', at); break;
+    case 'reroll': p.reroll++; await floatGlyph('🎲', at); break;
+    case 'ambush': target.trap = pi; SFX.play('trap'); await floatGlyph('🕸️', at); break; // the trap's tile stays secret
+    case 'sabotage': if (leader) { await bombFx(leader.i); leader.sabotaged++; say(`${leader.name} sabotaged`); } break;
+    case 'shield': target.shield = 2 * (alive().length - 1); paintTile(target); SFX.play('shield'); await shieldFx(target); break;
+    case 'fortify': target.fort = true; await fortifyFx(target); break;
+    case 'takeover': SFX.play('claim'); await beamFx(target); await setOwner(target, pi); break;
+    case 'bridge': { const done = await bridgeFx(pi, target); SFX.play('claim'); await setOwner(target, pi); done(); break; }
+    case 'portal': { const done = await portalFx(target); await setOwner(target, pi); done(); break; }
+    case 'demolish': await demolishFx(target); break;
+    case 'wall': await wallFx(target); break;
     case 'quake': {
-      SFX.play('quake');
       const t = pick(S.tiles.filter((x) => x.owner >= 0 && x.owner !== pi && x.kind !== 'hq' && x.shield === 0));
-      await tween(.5, (k) => { t.content.position.x = Math.sin(k * 40) * .06 * (1 - k); });
-      await setOwner(t, -1); break;
+      await quakeFx(t); await setOwner(t, -1); break;
     }
     case 'avalanche': {
       SFX.play('quake');
-      for (const t of shuffle(avalancheTargets(pi)).slice(0, 2)) await setOwner(t, -1);
+      for (const t of shuffle(avalancheTargets(pi)).slice(0, 2)) { await boulderFx(t); await setOwner(t, -1); }
       break;
     }
     case 'steal': {
       const victim = rivals(pi).sort((a, b) => b.hand.length - a.hand.length)[0];
+      await stealFx(victim.i, pi);
       const [c] = victim.hand.splice(Math.random() * victim.hand.length | 0, 1);
       if (p.hand.length < handMax(p)) p.hand.push(c); else S.discard.push(c);
       say(`Card stolen from ${victim.name}`); break;
@@ -1439,7 +1618,7 @@ async function useSuper(pi) {
   else if (p.char === 'seer') { [S.peek, S.peek2] = peekNext(2); }
   else {
     const ts = dragonTargets(pi);
-    for (const t of ts) { await transform(t, 'land', { bType: 'house', value: 1, owner: -1 }); if (dead(id)) return; }
+    for (const t of ts) { await demolishFx(t, 0xff4fa3); if (dead(id)) return; }
     say(ts.length ? `${ts.length} obstacle${ts.length > 1 ? 's' : ''} burned` : 'No obstacles nearby');
   }
   S.phase = 'guess'; updateUI();
@@ -1779,7 +1958,7 @@ let elapsed = 0, uiTick = 0, remoteTick = 0, lastStep = performance.now();
 function step() {
   const now = performance.now(), dt = Math.min((now - lastStep) / 1000, .1) * SPEED; lastStep = now; elapsed += dt;
   U.uTime.value = elapsed;
-  updateTweens(dt); updateFloats(dt);
+  updateTweens(dt); updateFloats(dt); updateFx(dt);
   island.position.y = Math.sin(elapsed * .4) * .04; boardGroup.position.y = island.position.y;
   for (const r of floaters) { r.rotation.x += dt * r.userData.spin; r.rotation.y += dt * r.userData.spin * .7; r.position.y = r.userData.base + Math.sin(elapsed * .5 + r.userData.spin * 10) * .2; }
   for (const c of spinners) { c.rotation.y += dt * 1.2; c.position.y = .58 + Math.sin(elapsed * 2 + c.id) * .05; }
@@ -1931,7 +2110,7 @@ if (REMOTE) {
 }
 
 resize(); showMenu(); frame();
-window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame, drink, gameOver };
+window.__hg = { get state() { return S; }, guess, cashIn, playCard, useSuper, startGame, drink, gameOver, cardTargets, canPlay, paintTile };
 </script>
 </body>
 </html>

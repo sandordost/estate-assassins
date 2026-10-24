@@ -1,6 +1,6 @@
 # Status
 
-Updated 3 October 2026 (version 1.5.0).
+Updated 3 October 2026 (version 1.6.0).
 
 ## Verified
 

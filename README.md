@@ -71,6 +71,12 @@ The double deck holds 104 playing cards and **30 action cards** of 20 kinds. Dra
 | 🏰 Fortress | One of your tiles needs 2× heads to be taken. |
 | 🕸️ Ambush | A hidden trap: the next attack on that tile fails. |
 
+Every played action card, also by the AI, appears large in the middle of the screen and then plays its own effect on
+the board: Barricade stacks a wall block by block, Demolition explodes with debris and screen shake, Bridge lays its
+planks across the obstacle, Portal opens a spinning ring, Hostile Takeover drops a beam of light, Avalanche rolls a
+boulder, Sabotage drops a bomb on the rival's emblem, Pickpocket flies a card across the table, and so on. Fortress
+tiles keep a visible rampart. Ambush only shows its card: the trapped tile stays secret.
+
 ### Heroes
 
 Original characters inspired by card duels (Yu-Gi-Oh) and ki battles (Dragon Ball Z). Each has a passive and one
